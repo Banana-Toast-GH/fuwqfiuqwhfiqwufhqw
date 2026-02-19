@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <title>Nature Factory Tycoon</title>
     <script>
         /* Suppress Tailwind CDN production warning */
@@ -1743,9 +1746,9 @@
             function applyUIScale() {
                 const wrapper = document.getElementById('ui-scale-wrapper');
                 const modal = document.getElementById('upgrade-modal');
-                const isMobile = 'ontouchstart' in window;
+                const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
                 if (isMobile) {
-                    const s = 0.35;
+                    const s = 0.55;
                     wrapper.style.transform = `scale(${s})`;
                     wrapper.style.transformOrigin = 'top left';
                     wrapper.style.width = `${(100 / s).toFixed(4)}%`;
