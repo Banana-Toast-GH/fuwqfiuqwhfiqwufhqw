@@ -1739,16 +1739,17 @@
             resize();
             loadGame();
 
-            // Mobile UI scaling — applied in JS to avoid Tailwind sm: breakpoint conflicts
+            // Mobile UI scaling — always apply in APK WebView context
             function applyUIScale() {
                 const wrapper = document.getElementById('ui-scale-wrapper');
                 const modal = document.getElementById('upgrade-modal');
-                if (window.innerWidth <= 600) {
+                const isMobile = 'ontouchstart' in window;
+                if (isMobile) {
                     const s = 0.35;
                     wrapper.style.transform = `scale(${s})`;
                     wrapper.style.transformOrigin = 'top left';
-                    wrapper.style.width = `${100 / s}%`;
-                    wrapper.style.height = `${100 / s}%`;
+                    wrapper.style.width = `${(100 / s).toFixed(4)}%`;
+                    wrapper.style.height = `${(100 / s).toFixed(4)}%`;
                     modal.classList.add('mobile-scaled');
                 } else {
                     wrapper.style.transform = '';
@@ -1793,14 +1794,18 @@
             }
             buildModeBtn.addEventListener('click', () => setBuildMode(!buildModeOn));
 
+            let lastPinchDist = null;
+            let isPinching = false;
+
             canvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 2) {
-                    // Starting a pinch — reset pinch state and stop any building
+                    isPinching = true;
                     lastPinchDist = null;
                     isMouseDown = false;
                     return;
                 }
                 if (e.touches.length > 1) return;
+                if (isPinching) return; // ignore new touches while pinching
                 const t = e.touches[0];
                 mouseX = t.clientX; mouseY = t.clientY;
                 lastMouseX = t.clientX; lastMouseY = t.clientY;
@@ -1821,7 +1826,7 @@
 
             canvas.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 2) {
-                    // Pinch-to-zoom
+                    isPinching = true;
                     const dx = e.touches[0].clientX - e.touches[1].clientX;
                     const dy = e.touches[0].clientY - e.touches[1].clientY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1837,8 +1842,7 @@
                     lastPinchDist = dist;
                     return;
                 }
-                if (e.touches.length > 1) return;
-                // Single finger
+                if (e.touches.length > 1 || isPinching) return;
                 const t = e.touches[0];
                 if (buildModeOn) {
                     if (selectedTool !== 'edit') handleAction(t.clientX, t.clientY);
@@ -1850,11 +1854,20 @@
             }, { passive: true });
 
             canvas.addEventListener('touchend', (e) => {
-                isMouseDown = false;
-                if (e.touches.length < 2) lastPinchDist = null;
+                if (e.touches.length === 0) {
+                    isMouseDown = false;
+                    isPinching = false;
+                    lastPinchDist = null;
+                } else if (e.touches.length === 1 && isPinching) {
+                    // One finger lifted from pinch — don't pan, just reset
+                    isPinching = false;
+                    lastPinchDist = null;
+                    isMouseDown = false;
+                    const t = e.touches[0];
+                    lastMouseX = t.clientX;
+                    lastMouseY = t.clientY;
+                }
             }, { passive: true });
-
-            let lastPinchDist = null;
 
             // Mouse wheel zoom (desktop)
             canvas.addEventListener('wheel', (e) => {
