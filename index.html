@@ -104,34 +104,67 @@
         .tab-btn.active { background: #7c3aed; color: white; }
 
         /* ── Mobile scaling ───────────────────────────────────────── */
-        @media (max-width: 480px) {
-            #ui-layer { padding: 8px !important; }
+        @media (max-width: 600px) {
+            #ui-layer { padding: 6px !important; }
 
             /* Balance card */
-            #balance-display { font-size: 1.5rem !important; }
+            #balance-display { font-size: 1rem !important; line-height: 1.2 !important; }
+            #balance-display ~ div p { font-size: 8px !important; }
 
-            /* Top-right: hide text labels on save buttons, shrink research bar */
-            #research-progress-container { width: 90px !important; padding: 4px 6px !important; }
+            /* Top-left stack */
+            #ui-layer > div:first-child > div:first-child { gap: 4px !important; }
+
+            /* Balance card box */
+            #ui-layer .balance-card,
+            #ui-layer > div > div > div:first-child { padding: 5px 8px !important; min-width: 110px !important; border-width: 2px !important; border-radius: 1rem !important; }
+
+            /* Harvest & Upgrades */
+            #manual-clicker { padding: 4px 6px !important; gap: 4px !important; border-bottom-width: 2px !important; }
+            #manual-clicker span:first-child { font-size: 0.85rem !important; }
+            #manual-clicker p:first-child { font-size: 7px !important; }
+            #manual-clicker p:last-child  { font-size: 8px !important; }
+            #open-upgrades { padding: 4px 6px !important; gap: 4px !important; border-bottom-width: 2px !important; }
+            #open-upgrades span:first-child { font-size: 0.85rem !important; }
+            #open-upgrades span:last-child  { font-size: 8px !important; }
+
+            /* Top-right column */
+            #ui-layer > div > div:last-child { gap: 3px !important; }
+            #ui-layer > div > div:last-child > div:first-child { padding: 3px 6px !important; border-radius: 0.6rem !important; }
+            #ui-layer > div > div:last-child > div:first-child p:first-child { font-size: 8px !important; }
+            #ui-layer > div > div:last-child > div:first-child p:last-child  { font-size: 7px !important; }
+
+            /* Save/export buttons row */
+            #ui-layer > div > div:last-child > div:last-child { gap: 3px !important; }
+            #research-progress-container { width: 70px !important; padding: 3px 5px !important; border-radius: 0.6rem !important; }
+            #research-progress-container span { font-size: 7px !important; }
+            #research-progress-container .h-3 { height: 6px !important; }
             .save-btn-text { display: none !important; }
-            #export-save, #import-label, #delete-save, #sound-toggle { padding: 6px 8px !important; }
+            #export-save, #import-label, #delete-save,
+            #sound-toggle, #research-btn { padding: 4px 6px !important; border-bottom-width: 2px !important; border-radius: 0.6rem !important; }
             #export-save span:first-child, #import-label span:first-child,
-            #delete-save span:first-child { font-size: 1rem !important; }
+            #delete-save span:first-child, #sound-toggle span { font-size: 0.85rem !important; }
 
-            /* Category tabs — tighter */
-            .cat-btn { padding: 3px 7px !important; font-size: 8px !important; }
+            /* Bottom area */
+            #ui-layer > div:last-child { gap: 3px !important; }
 
-            /* Toolbar — smaller tiles */
-            #tool-menu { padding: 5px 8px !important; gap: 5px !important;
-                         border-width: 2px !important; border-radius: 1.2rem !important; }
-            .tool-btn { min-width: 50px !important; padding: 4px 3px !important; }
-            .tool-btn span:first-child { font-size: 1rem !important; }
-            .tool-btn span:last-child  { font-size: 7px !important; }
+            /* Category tabs */
+            .cat-btn { padding: 2px 5px !important; font-size: 7px !important; border-width: 1px !important; border-radius: 0.6rem !important; }
 
-            /* Harvest & Upgrades buttons */
-            #manual-clicker, #open-upgrades { padding: 6px 8px !important; }
+            /* Toolbar */
+            #tool-menu { padding: 3px 5px !important; gap: 3px !important; border-width: 2px !important; border-radius: 1rem !important; max-width: calc(100vw - 12px) !important; }
+            .tool-btn { min-width: 38px !important; padding: 3px 2px !important; border-radius: 0.5rem !important; border-width: 1px !important; }
+            .tool-btn span:first-child { font-size: 0.8rem !important; }
+            .tool-btn span:last-child  { font-size: 6px !important; margin-top: 1px !important; }
 
-            /* Rotation widget */
-            #rot-icon { font-size: 1rem !important; }
+            /* Build mode + rotation */
+            #btn-build-mode { min-width: 42px !important; }
+            #btn-rot-ccw, #btn-rot-cw { width: 18px !important; height: 18px !important; font-size: 9px !important; }
+            #rot-icon { font-size: 0.85rem !important; }
+            #tool-menu > div:last-child span:last-child { font-size: 6px !important; }
+
+            /* Upgrade modal */
+            #upgrade-modal > div { padding: 16px !important; border-radius: 1.2rem !important; border-width: 4px !important; }
+            #upgrade-modal h2 { font-size: 1.3rem !important; }
         }
     </style>
 </head>
@@ -199,7 +232,7 @@
                     <label id="import-label" class="bg-green-600 hover:bg-green-500 text-white p-3 rounded-2xl border-b-4 border-green-800 interactable shadow-lg transition-all flex items-center gap-2 cursor-pointer" title="Load a save file">
                         <span class="text-xl">📥</span>
                         <span class="save-btn-text text-xs font-black uppercase">Import</span>
-                        <input id="import-file" type="file" accept=".fruit,.save,.json" class="hidden" />
+                        <input id="import-file" type="file" accept=".fruit,.save,.json,.txt" class="hidden" />
                     </label>
                     <button id="delete-save" class="bg-red-600 hover:bg-red-500 text-white p-3 rounded-2xl border-b-4 border-red-800 interactable shadow-lg transition-all flex items-center gap-2" title="Delete Save & Reset">
                         <span class="text-xl">🗑️</span>
@@ -528,6 +561,10 @@
             { id: 'night_owl',        desc: '🌙 Survive the Night',       name: 'Night Owl',              how: 'Play through a full night cycle',               rarity: 'Common',    rarityColor: '#86efac', check: () => nightsWitnessed >= 1 },
             { id: 'speed_demon',      desc: '⚡ Max Belt Speed',          name: 'Speed Demon',            how: 'Reach a belt speed multiplier of 3.0x',         rarity: 'Rare',      rarityColor: '#c084fc', check: () => speedMultiplier >= 3.0 },
             { id: 'multiplier_100',   desc: '💥 100x Multiplier',         name: 'Exponential Growth',     how: 'Reach a global multiplier of 100x',             rarity: 'Epic',      rarityColor: '#f97316', check: () => globalMultiplier >= 100 },
+            // New achievements — reaching 30 total
+            { id: 'buy_500_tiles',    desc: '🌆 Place 500 Tiles',          name: 'Sprawling Empire',       how: 'Place 500 tiles on the factory floor',          rarity: 'Epic',      rarityColor: '#f97316', check: () => Object.keys(grid).length >= 500 },
+            { id: 'ten_nights',       desc: '🌑 10 Nights Survived',       name: 'Creature of the Night',  how: 'Play through 10 full night cycles',             rarity: 'Rare',      rarityColor: '#c084fc', check: () => nightsWitnessed >= 10 },
+            { id: 'ultra_clicker',    desc: '👊 Click 50,000 Times',       name: 'Thumb of Steel',         how: 'Click the harvest button 50,000 times',         rarity: 'Legendary', rarityColor: '#fbbf24', check: () => totalClicks >= 50000 },
         ];
         let unlockedAchievements = {};
         let goldenFruitsCaught = 0;
@@ -681,6 +718,8 @@
         const particles = [];
 
         let camX = 0, camY = 0;
+        let zoom = 1.0;
+        const MIN_ZOOM = 0.3, MAX_ZOOM = 2.5;
         let mouseX = 0, mouseY = 0;
         let lastMouseX = 0, lastMouseY = 0;
         let hasMouse = false; // true once a real mouse move is detected
@@ -836,7 +875,7 @@
 
             // Try native download first
             try {
-                const blob = new Blob([json], { type: 'text/plain' });
+                const blob = new Blob([json], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 const date = new Date().toISOString().slice(0,10);
@@ -959,8 +998,8 @@
         }
 
         function handleAction(cX, cY) {
-            const gx = Math.floor((cX + camX) / TILE_SIZE);
-            const gy = Math.floor((cY + camY) / TILE_SIZE);
+            const gx = Math.floor((cX / zoom + camX) / TILE_SIZE);
+            const gy = Math.floor((cY / zoom + camY) / TILE_SIZE);
             const key = `${gx},${gy}`;
 
             if (selectedTool === 'edit') {
@@ -1442,22 +1481,31 @@
             const sun = getSunPosition(phase);
             const isNight = phase < 0.22 || phase > 0.78;
 
-            // Base ground
+            // Base ground — always full canvas, no zoom
             ctx.globalAlpha = 1.0;
             ctx.fillStyle = '#417d3a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#4da344';
-            const startX = Math.floor(camX / 128) * 128, startY = Math.floor(camY / 128) * 128;
-            for (let x = startX - 128; x < canvas.width + startX + 128; x += 128)
-                for (let y = startY - 128; y < canvas.height + startY + 128; y += 128)
-                    if ((Math.abs(x / 128) + Math.abs(y / 128)) % 2 === 0) ctx.fillRect(x - camX, y - camY, 128, 128);
 
-            // Sky colour overlay
+            // Grass checkerboard — drawn in screen space, tile size adjusted for zoom
+            ctx.fillStyle = '#4da344';
+            const gs = 128 * zoom;
+            const startX = Math.floor(camX * zoom / gs) * gs;
+            const startY = Math.floor(camY * zoom / gs) * gs;
+            for (let x = startX - gs; x < canvas.width + gs; x += gs)
+                for (let y = startY - gs; y < canvas.height + gs; y += gs)
+                    if ((Math.abs(Math.round(x / gs)) + Math.abs(Math.round(y / gs))) % 2 === 0)
+                        ctx.fillRect(x, y, gs, gs);
+
+            // Sky colour overlay — always full canvas, no zoom
             const skyAlpha = isNight ? 0.55 : (phase < 0.3 || phase > 0.7) ? 0.35 : 0.18;
             ctx.globalAlpha = skyAlpha;
             ctx.fillStyle = `rgb(${sky.r},${sky.g},${sky.b})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.globalAlpha = 1.0;
+
+            // Everything else is in zoomed world space
+            ctx.save();
+            ctx.scale(zoom, zoom);
 
             // Ground layer tiles
             for (let key in grid) {
@@ -1534,8 +1582,8 @@
             if (nowIsNight && !_wasNight) nightsWitnessed++;
             _wasNight = nowIsNight;
 
-            const mx = Math.floor((mouseX + camX) / TILE_SIZE);
-            const my = Math.floor((mouseY + camY) / TILE_SIZE);
+            const mx = Math.floor((mouseX / zoom + camX) / TILE_SIZE);
+            const my = Math.floor((mouseY / zoom + camY) / TILE_SIZE);
             if (selectedTool !== 'edit' && hasMouse) drawTile(selectedTool, currentRotation, mx, my, true);
 
             ctx.save();
@@ -1547,6 +1595,8 @@
                 if (p.life <= 0) particles.splice(i, 1);
             }
             ctx.restore();
+
+            ctx.restore(); // end zoom scale
 
             requestAnimationFrame(draw);
         }
@@ -1672,8 +1722,8 @@
                 </button>
             `;
             // Position panel
-            const screenX = gx * TILE_SIZE - camX + TILE_SIZE;
-            const screenY = gy * TILE_SIZE - camY;
+            const screenX = (gx * TILE_SIZE - camX) * zoom + TILE_SIZE * zoom;
+            const screenY = (gy * TILE_SIZE - camY) * zoom;
             let px = screenX + 8, py = screenY;
             if (px + 230 > window.innerWidth) px = (gx * TILE_SIZE - camX) - 238;
             if (py + 200 > window.innerHeight) py = window.innerHeight - 205;
@@ -1725,8 +1775,8 @@
 
         canvas.addEventListener('mousemove', (e) => {
             if (mouseOnDropperPanel) return;
-            const gx = Math.floor((e.clientX + camX) / TILE_SIZE);
-            const gy = Math.floor((e.clientY + camY) / TILE_SIZE);
+            const gx = Math.floor((e.clientX / zoom + camX) / TILE_SIZE);
+            const gy = Math.floor((e.clientY / zoom + camY) / TILE_SIZE);
             const key = `${gx},${gy}`;
             const tile = grid[key];
             if (tile && tile.type.includes('dropper')) {
@@ -1762,7 +1812,7 @@
                 mouseX = e.clientX; mouseY = e.clientY;
                 // Pan: right-click always pans; left-click pans when build mode OFF
                 if (isRightMouseDown || (isMouseDown && !buildModeOn)) {
-                    camX -= (e.clientX - lastMouseX); camY -= (e.clientY - lastMouseY);
+                    camX -= (e.clientX - lastMouseX) / zoom; camY -= (e.clientY - lastMouseY) / zoom;
                 }
                 if (isMouseDown && buildModeOn && selectedTool !== 'edit') handleAction(e.clientX, e.clientY);
                 lastMouseX = e.clientX; lastMouseY = e.clientY;
@@ -1789,8 +1839,8 @@
                 isMouseDown = true;
                 if (buildModeOn) {
                     // Also check for dropper tap
-                    const gx = Math.floor((t.clientX + camX) / TILE_SIZE);
-                    const gy = Math.floor((t.clientY + camY) / TILE_SIZE);
+                    const gx = Math.floor((t.clientX / zoom + camX) / TILE_SIZE);
+                    const gy = Math.floor((t.clientY / zoom + camY) / TILE_SIZE);
                     const key = `${gx},${gy}`;
                     const tile = grid[key];
                     if (tile && tile.type.includes('dropper')) {
@@ -1807,12 +1857,50 @@
                 if (buildModeOn) {
                     if (selectedTool !== 'edit') handleAction(t.clientX, t.clientY);
                 } else {
-                    camX -= (t.clientX - lastMouseX);
-                    camY -= (t.clientY - lastMouseY);
+                    camX -= (t.clientX - lastMouseX) / zoom;
+                    camY -= (t.clientY - lastMouseY) / zoom;
                 }
                 lastMouseX = t.clientX; lastMouseY = t.clientY;
             }, { passive: true });
             canvas.addEventListener('touchend', () => { isMouseDown = false; });
+
+            // Pinch-to-zoom
+            let lastPinchDist = null;
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) lastPinchDist = null;
+            }, { passive: true });
+            canvas.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (lastPinchDist !== null) {
+                        const delta = dist - lastPinchDist;
+                        // Zoom toward pinch midpoint
+                        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                        const oldZoom = zoom;
+                        zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * (1 + delta * 0.008)));
+                        // Adjust cam so the midpoint stays fixed on screen
+                        camX += mx / oldZoom - mx / zoom;
+                        camY += my / oldZoom - my / zoom;
+                    }
+                    lastPinchDist = dist;
+                }
+            }, { passive: true });
+            canvas.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) lastPinchDist = null;
+            }, { passive: true });
+
+            // Mouse wheel zoom (desktop)
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = -e.deltaY * 0.001;
+                const oldZoom = zoom;
+                zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * (1 + delta)));
+                camX += e.clientX / oldZoom - e.clientX / zoom;
+                camY += e.clientY / oldZoom - e.clientY / zoom;
+            }, { passive: false });
 
             function sellSelected() {
                 if (selectedTool === 'edit' && selectedObjectKey) {
