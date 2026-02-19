@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nature Factory Tycoon</title>
+    <script>
+        /* Suppress Tailwind CDN production warning */
+        const __tailwindWarningFilter = console.warn;
+        console.warn = (...args) => { if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return; __tailwindWarningFilter.apply(console, args); };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #2d5a27; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        canvas { display: block; cursor: crosshair; touch-action: none; }
+        canvas:active { cursor: crosshair; }
+        canvas.pan-mode { cursor: grab; }
+        canvas.pan-mode:active { cursor: grabbing; }
+        button, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .interactable { pointer-events: auto; }
+        .tool-btn { transition: all 0.2s; border: 2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.9); position: relative; }
+        .tool-btn:hover { transform: translateY(-2px); background: rgba(30, 41, 59, 1); }
+        .tool-btn.active { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); transform: scale(1.1); }
+        #tool-menu::-webkit-scrollbar { height: 6px; }
+        #tool-menu::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        #tool-menu::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.3); border-radius: 10px; }
+        #tool-menu { cursor: default; scroll-behavior: smooth; }
+        .modal { background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); }
+        .locked-upgrade { opacity: 0.5; filter: grayscale(1); pointer-events: none; }
+
+        #tool-tooltip {
+            position: fixed;
+            background: rgba(10,15,30,0.97);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 16px;
+            border: 2px solid rgba(255,255,255,0.12);
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 200;
+            min-width: 180px;
+            max-width: 240px;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        #dropper-panel {
+            position: fixed;
+            background: rgba(10,15,30,0.97);
+            color: white;
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 2px solid #fbbf24;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            pointer-events: auto;
+            z-index: 200;
+            min-width: 210px;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        
+        #notification-container {
+            position: fixed;
+            bottom: 160px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .notification {
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 16px;
+            border-left: 4px solid #fbbf24;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .notification.show { transform: translateX(0); }
+
+        .progress-bar-bg { background: rgba(255,255,255,0.2); border: 2px solid rgba(0,0,0,0.3); }
+        .progress-bar-fill { transition: width 0.3s ease-out; }
+
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #1a2e1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+        }
+
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { background: #7c3aed; color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="text-6xl mb-4 animate-bounce">🌳</div>
+        <h1 class="text-2xl font-black tracking-widest">LOADING FACTORY...</h1>
+        <p id="loading-subtext" class="text-green-400 text-xs mt-2 uppercase">Loading Local Save</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <audio id="bg-music" loop preload="auto" style="display:none">
+        <source src="https://raw.githubusercontent.com/Banana-Toast-GH/RandomMusicForTycoonIg/f99ef6c62feb9d90883369b76a8c8efc68fd9fbc/freecompress-1%20Hour%20Of%202017%20Roblox%20Tycoon%20Music%20%5BVe6fZ6u8ucM%5D.mp3" type="audio/mpeg">
+    </audio>
+    <div id="notification-container"></div>
+    <div id="tool-tooltip"></div>
+    <div id="dropper-panel"></div>
+
+    <div id="ui-layer" class="p-6 flex flex-col justify-between">
+        <div class="flex justify-between items-start">
+            <div class="flex flex-col gap-3">
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-3xl border-4 border-green-800 interactable shadow-2xl min-w-[200px]">
+                    <p class="text-green-800 text-xs uppercase tracking-tighter font-black">Bank Balance</p>
+                    <h1 id="balance-display" class="text-4xl font-black text-green-600">$150</h1>
+                    <div class="flex justify-between mt-1 border-t border-green-200 pt-1">
+                        <p id="mps-display" class="text-[10px] font-bold text-orange-600">MPS: $0.00</p>
+                        <p id="multiplier-text" class="text-[10px] font-bold text-blue-600">Multi: 1.0x</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="manual-clicker" class="bg-orange-500 hover:bg-orange-400 text-white p-3 rounded-2xl border-b-4 border-orange-700 interactable shadow-lg transition-all active:border-b-0 active:translate-y-1 flex items-center gap-2 group">
+                        <span class="text-xl group-hover:rotate-12 transition-transform">⛏️</span>
+                        <div class="text-left">
+                            <p class="text-[10px] font-bold uppercase leading-none">Harvest</p>
+                            <p id="click-value-text" class="text-xs font-black">+$1.00</p>
+                        </div>
+                    </button>
+                    <button id="open-upgrades" class="bg-purple-600 hover:bg-purple-500 text-white p-3 rounded-2xl border-b-4 border-purple-800 interactable shadow-lg transition-all flex items-center gap-2">
+                        <span class="text-xl">✨</span>
+                        <span class="text-xs font-black uppercase">Upgrades</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-2 items-end">
+                <div class="bg-white/90 backdrop-blur-md p-3 rounded-2xl border-2 border-green-800 text-right interactable shadow-xl">
+                    <p class="text-green-900 text-sm font-bold">Nature Factory v6.0</p>
+                    <p id="save-status" class="text-blue-600 text-[9px] font-bold uppercase tracking-widest">Ready</p>
+                </div>
+                <div class="flex gap-2 items-center flex-wrap justify-end max-w-[calc(100vw-220px)]">
+                    <div id="research-progress-container" class="bg-white/80 backdrop-blur-md p-2 rounded-2xl border-2 border-blue-900 w-48 interactable shadow-lg flex flex-col gap-1">
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-[9px] font-black text-blue-900 uppercase">Research Progress</span>
+                            <span id="research-percent" class="text-[9px] font-black text-blue-700">0%</span>
+                        </div>
+                        <div class="w-full h-3 progress-bar-bg rounded-full overflow-hidden">
+                            <div id="research-bar-fill" class="h-full bg-blue-500 progress-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <button id="export-save" class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl border-b-4 border-blue-800 interactable shadow-lg transition-all flex items-center gap-2" title="Download save file">
+                        <span class="text-xl">📤</span>
+                        <span class="text-xs font-black uppercase">Export</span>
+                    </button>
+                    <label id="import-label" class="bg-green-600 hover:bg-green-500 text-white p-3 rounded-2xl border-b-4 border-green-800 interactable shadow-lg transition-all flex items-center gap-2 cursor-pointer" title="Load a save file">
+                        <span class="text-xl">📥</span>
+                        <span class="text-xs font-black uppercase">Import</span>
+                        <input id="import-file" type="file" accept=".fruit,.save,.json" class="hidden" />
+                    </label>
+                    <button id="delete-save" class="bg-red-600 hover:bg-red-500 text-white p-3 rounded-2xl border-b-4 border-red-800 interactable shadow-lg transition-all flex items-center gap-2" title="Delete Save & Reset">
+                        <span class="text-xl">🗑️</span>
+                        <span class="text-xs font-black uppercase">Reset</span>
+                    </button>
+                    <button id="research-btn" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-105 text-white p-3 rounded-2xl border-b-4 border-blue-900 interactable shadow-xl transition-all flex items-center gap-2">
+                        <span class="text-xl">🔬</span>
+                        <div class="text-left">
+                            <p class="text-[8px] font-bold uppercase leading-none">Prestige</p>
+                            <p class="text-[10px] font-black">Level Up ($1M)</p>
+                        </div>
+                    </button>
+                    <button id="sound-toggle" class="bg-white/90 p-3 rounded-full border-2 border-green-800 interactable text-green-800 hover:bg-green-100 shadow-xl transition-colors">
+                        <span id="sound-icon">🔊</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center gap-2">
+            <!-- Category Filter Tabs -->
+            <div class="flex gap-2 interactable flex-wrap justify-center">
+                <button data-cat="conveyors" class="cat-btn active px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:#64748b;border-color:#475569;color:white;">🛤️ Conveyors</button>
+                <button data-cat="droppers"  class="cat-btn px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:rgba(15,23,42,0.7);border-color:rgba(255,255,255,0.1);color:#86efac;">🌱 Droppers</button>
+                <button data-cat="compressors" class="cat-btn px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:rgba(15,23,42,0.7);border-color:rgba(255,255,255,0.1);color:#fdba74;">⚙️ Compressors</button>
+                <button data-cat="misc"      class="cat-btn px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:rgba(15,23,42,0.7);border-color:rgba(255,255,255,0.1);color:#fde68a;">🧰 Misc</button>
+                <button data-cat="decorations" class="cat-btn px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:rgba(15,23,42,0.7);border-color:rgba(255,255,255,0.1);color:#d8b4fe;">🌸 Decorations</button>
+            </div>
+
+            <!-- Tool Bar -->
+            <div id="tool-menu" class="bg-white/90 backdrop-blur-xl p-3 rounded-[2.5rem] border-4 border-green-900 flex gap-3 interactable shadow-2xl overflow-x-auto" style="max-width: calc(100vw - 48px); scrollbar-width: thin; border-color: #14532d;">
+
+                <!-- CONVEYORS -->
+                <button id="btn-conveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🛤️</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Belt $5</span>
+                </button>
+                <button id="btn-fastConveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">⚡</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Fast $20</span>
+                </button>
+                <button id="btn-turboConveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🚀</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Turbo $80</span>
+                </button>
+
+                <!-- DROPPERS -->
+                <button id="btn-dropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🌱</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Basic $25</span>
+                </button>
+                <button id="btn-megaDropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🌳</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Mega $150</span>
+                </button>
+                <button id="btn-goldenDropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">⭐</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Gold $500</span>
+                </button>
+
+                <!-- COMPRESSORS -->
+                <button id="btn-refinery" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">💎</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Refine $75</span>
+                </button>
+                <button id="btn-smelter" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🔥</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Smelt $75</span>
+                </button>
+                <button id="btn-presser" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">⚙️</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Press $200</span>
+                </button>
+                <button id="btn-juicer" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🧪</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Juice $350</span>
+                </button>
+                <button id="btn-upgradeStation" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🏗️</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Boost $400</span>
+                </button>
+
+                <!-- MISC -->
+                <button id="btn-wall" data-cat="misc" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🧱</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Wall $10</span>
+                </button>
+                <button id="btn-collector" data-cat="misc" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🧺</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Bin $0</span>
+                </button>
+                <button id="btn-edit" data-cat="always" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🖱️</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Edit</span>
+                </button>
+                <button id="btn-sell" data-cat="always" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px] hidden" title="Sell selected tile (50% refund)">
+                    <span class="text-xl">🗑️</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Sell</span>
+                </button>
+
+                <!-- DECORATIONS -->
+                <button id="btn-tree"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🌲</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Tree $5</span>
+                </button>
+                <button id="btn-flower" data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🌸</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Flower $3</span>
+                </button>
+                <button id="btn-pond"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">💧</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Pond $15</span>
+                </button>
+                <button id="btn-sign"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🪧</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Sign $8</span>
+                </button>
+                <button id="btn-lamp"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🪔</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Lamp $12</span>
+                </button>
+                <button id="btn-bench"  data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                    <span class="text-xl">🪑</span>
+                    <span class="text-[9px] uppercase font-black mt-1">Bench $10</span>
+                </button>
+
+                <!-- Build Mode Toggle (mobile) -->
+                <div class="flex flex-col gap-1 items-center interactable" data-cat="always">
+                    <button id="btn-build-mode" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px] active" title="Toggle Build/Pan mode">
+                        <span id="build-mode-icon" class="text-xl">🔨</span>
+                        <span id="build-mode-label" class="text-[9px] uppercase font-black mt-1">Build ON</span>
+                    </button>
+                </div>
+
+                <!-- Rotation indicator always visible — tap arrows to rotate -->
+                <div class="flex flex-col gap-1 items-center bg-slate-200/50 p-1 px-2 rounded-xl min-w-[60px] interactable" data-cat="always">
+                    <div class="flex gap-1 items-center w-full justify-center">
+                        <button id="btn-rot-ccw" class="text-base leading-none bg-white/70 hover:bg-white active:scale-90 rounded-lg w-6 h-6 flex items-center justify-center font-black text-slate-700 border border-slate-300 transition-all" title="Rotate Left (Q)">◀</button>
+                        <span id="rot-icon" class="text-lg">⬆️</span>
+                        <button id="btn-rot-cw" class="text-base leading-none bg-white/70 hover:bg-white active:scale-90 rounded-lg w-6 h-6 flex items-center justify-center font-black text-slate-700 border border-slate-300 transition-all" title="Rotate Right (E)">▶</button>
+                    </div>
+                    <span class="text-[8px] font-black text-slate-600">Rotate</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upgrade Modal -->
+    <div id="upgrade-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal interactable">
+        <div class="bg-white rounded-[3rem] p-8 max-w-lg w-full border-8 border-purple-800 shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-3xl font-black text-purple-900">FACTORY STATS</h2>
+                    <p class="text-slate-500 text-xs font-bold uppercase">Research Level: <span id="modal-res-level">0</span></p>
+                </div>
+                <button id="close-upgrades" class="text-slate-400 hover:text-red-500 text-2xl font-bold">✕</button>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-3xl mb-4 grid grid-cols-2 gap-4 border-2 border-slate-100">
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Total Items</p>
+                    <p id="stat-total-items" class="text-xl font-black text-slate-800">0</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Peak MPS</p>
+                    <p id="stat-peak-mps" class="text-xl font-black text-slate-800">$0.00</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Total Earned</p>
+                    <p id="stat-total-earned" class="text-xl font-black text-green-700">$0</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Rebirths</p>
+                    <p id="stat-rebirths" class="text-xl font-black text-purple-700">0</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Golden Fruits</p>
+                    <p id="stat-golden" class="text-xl font-black text-yellow-600">0 ⭐</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400">Rebirth Cost ×</p>
+                    <p id="stat-rebirth-mult" class="text-xl font-black text-red-500">1×</p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-4">
+                <button id="tab-upgrades" class="tab-btn active flex-1 py-2 rounded-2xl font-black text-sm bg-purple-600 text-white border-2 border-purple-800 interactable">✨ Upgrades</button>
+                <button id="tab-construction" class="tab-btn flex-1 py-2 rounded-2xl font-black text-sm bg-slate-200 text-slate-700 border-2 border-slate-300 interactable">🏗️ Construction</button>
+                <button id="tab-achievements" class="tab-btn flex-1 py-2 rounded-2xl font-black text-sm bg-slate-200 text-slate-700 border-2 border-slate-300 interactable">🏆 Achievements</button>
+            </div>
+
+            <div id="upgrade-list" class="flex flex-col gap-4"></div>
+            <div id="construction-list" class="hidden flex flex-col gap-4"></div>
+            <div id="achievement-list" class="hidden flex flex-col gap-3"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const TILE_SIZE = 64;
+        const SAVE_KEY = 'natureFactoryTycoon_v6';
+
+        // ─── Sandbox-Safe Storage ────────────────────────────────────────────────────
+        // Falls back to in-memory if localStorage is blocked (Turbowarp, iframes, etc.)
+        let _sandboxMemory = {};
+        let _storageMode = 'unknown'; // 'local' | 'memory'
+
+        const SafeStorage = {
+            _detect() {
+                if (_storageMode !== 'unknown') return;
+                try {
+                    const t = '__nft_test__';
+                    localStorage.setItem(t, '1');
+                    localStorage.removeItem(t);
+                    _storageMode = 'local';
+                } catch(e) {
+                    _storageMode = 'memory';
+                    console.warn('[NatureTycoon] localStorage unavailable — using in-memory fallback.');
+                }
+            },
+            setItem(key, value) {
+                this._detect();
+                if (_storageMode === 'local') {
+                    try { localStorage.setItem(key, value); return true; } catch(e) { _storageMode = 'memory'; }
+                }
+                _sandboxMemory[key] = value;
+                return true;
+            },
+            getItem(key) {
+                this._detect();
+                if (_storageMode === 'local') {
+                    try { return localStorage.getItem(key); } catch(e) { _storageMode = 'memory'; }
+                }
+                return _sandboxMemory[key] ?? null;
+            },
+            removeItem(key) {
+                this._detect();
+                if (_storageMode === 'local') {
+                    try { localStorage.removeItem(key); return; } catch(e) { _storageMode = 'memory'; }
+                }
+                delete _sandboxMemory[key];
+            },
+            get mode() { this._detect(); return _storageMode; }
+        };
+
+        // --- Number Formatting ---
+        function formatNumber(n) {
+            if (!isFinite(n) || isNaN(n)) return '$0';
+            const abs = Math.abs(n);
+            const suffixes = [
+                [1e63, 'Vg'], [1e60, 'Nv'], [1e57, 'Oc'], [1e54, 'Sp'],
+                [1e51, 'Sx'], [1e48, 'Qi'], [1e45, 'Qa'], [1e42, 'Tr'],
+                [1e39, 'Du'], [1e36, 'Un'], [1e33, 'Dc'],
+                [1e30, 'No'], [1e27, 'Oc'], [1e24, 'Sp'],
+                [1e21, 'Sx'], [1e18, 'Qi'], [1e15, 'Qa'],
+                [1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']
+            ];
+            for (const [val, suffix] of suffixes) {
+                if (abs >= val) {
+                    const num = n / val;
+                    return '$' + (num >= 100 ? num.toFixed(1) : num.toFixed(2)) + suffix;
+                }
+            }
+            return '$' + Math.floor(n).toLocaleString();
+        }
+
+        // --- Game State ---
+        let balance = 150;
+        let researchLevel = 0;
+        const RESEARCH_COST = 1000000;
+        let globalMultiplier = 1.0;
+        let selectedTool = 'conveyor';
+        let currentRotation = 0;
+        let isMouseDown = false;
+        let isRightMouseDown = false;
+        let selectedObjectKey = null;
+
+        let clickPower = 1.0;
+        let speedMultiplier = 1.0;
+        let totalItemsSold = 0;
+        let peakMPS = 0;
+        let soundEnabled = true;
+
+        let mpsBuffer = [];
+        let currentMPS = 0;
+        let totalEarned = 0;
+        let totalRebirths = 0;
+        let totalClicks = 0;
+        let nightsWitnessed = 0;
+        let _wasNight = false; // used to detect night transitions
+
+        // --- Achievements ---
+        const ACHIEVEMENTS = [
+            // Fruit milestones
+            { id: 'first_fruit',      desc: '🍎 First Fruit',            name: 'First Fruit',            how: 'Sell your very first fruit',                    rarity: 'Common',    rarityColor: '#86efac', check: () => totalItemsSold >= 1 },
+            { id: 'hundred_fruits',   desc: '🍇 100 Fruits Sold',         name: '100 Fruits Sold',        how: 'Sell 100 fruits total',                         rarity: 'Common',    rarityColor: '#86efac', check: () => totalItemsSold >= 100 },
+            { id: 'sold_1000',        desc: '🌳 1,000 Fruits Sold',       name: '1,000 Fruits Sold',      how: 'Sell 1,000 fruits total',                       rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => totalItemsSold >= 1000 },
+            { id: 'sold_10k',         desc: '🌲 10,000 Fruits Sold',      name: 'Fruit Farmer',           how: 'Sell 10,000 fruits total',                      rarity: 'Rare',      rarityColor: '#c084fc', check: () => totalItemsSold >= 10000 },
+            { id: 'sold_100k',        desc: '🏭 100,000 Fruits Sold',     name: 'Fruit Tycoon',           how: 'Sell 100,000 fruits total',                     rarity: 'Epic',      rarityColor: '#f97316', check: () => totalItemsSold >= 100000 },
+            // Money milestones
+            { id: 'first_thousand',   desc: '💰 First $1,000',            name: 'First $1,000',           how: 'Earn $1,000 total',                             rarity: 'Common',    rarityColor: '#86efac', check: () => totalEarned >= 1000 },
+            { id: 'first_million',    desc: '🤑 First $1 Million',        name: 'First $1 Million',       how: 'Earn $1,000,000 total',                         rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => totalEarned >= 1e6 },
+            { id: 'first_billion',    desc: '🏦 First $1 Billion',        name: 'First $1 Billion',       how: 'Earn $1,000,000,000 total',                     rarity: 'Rare',      rarityColor: '#c084fc', check: () => totalEarned >= 1e9 },
+            { id: 'first_trillion',   desc: '🚀 First $1 Trillion',       name: 'Trillionaire',           how: 'Earn $1,000,000,000,000 total',                 rarity: 'Epic',      rarityColor: '#f97316', check: () => totalEarned >= 1e12 },
+            { id: 'first_quadrillion',desc: '🌌 First $1 Quadrillion',    name: 'Fruit God',              how: 'Earn $1,000,000,000,000,000 total',             rarity: 'Legendary', rarityColor: '#fbbf24', check: () => totalEarned >= 1e15 },
+            // Rebirth milestones
+            { id: 'first_rebirth',    desc: '🔬 First Rebirth',           name: 'First Rebirth',          how: 'Prestige for the first time',                   rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => totalRebirths >= 1 },
+            { id: 'rebirth_3',        desc: '⚗️ Rebirth x3',              name: 'Rebirth x3',             how: 'Prestige 3 times',                              rarity: 'Rare',      rarityColor: '#c084fc', check: () => totalRebirths >= 3 },
+            { id: 'rebirth_5',        desc: '💫 Rebirth x5',              name: 'Eternal Tycoon',         how: 'Prestige 5 times',                              rarity: 'Epic',      rarityColor: '#f97316', check: () => totalRebirths >= 5 },
+            // Golden fruits
+            { id: 'golden_fruit',     desc: '⭐ Caught a Golden Fruit',   name: 'Lucky Catch',            how: 'Collect a rare golden fruit',                   rarity: 'Rare',      rarityColor: '#c084fc', check: () => goldenFruitsCaught >= 1 },
+            { id: 'golden_10',        desc: '✨ 10 Golden Fruits',         name: 'Golden Streak',          how: 'Collect 10 golden fruits total',                rarity: 'Epic',      rarityColor: '#f97316', check: () => goldenFruitsCaught >= 10 },
+            { id: 'golden_50',        desc: '👑 50 Golden Fruits',         name: 'Golden King',            how: 'Collect 50 golden fruits total',                rarity: 'Legendary', rarityColor: '#fbbf24', check: () => goldenFruitsCaught >= 50 },
+            // Construction & upgrades
+            { id: 'all_built',        desc: '🏰 All Constructions',       name: 'Master Builder',         how: 'Build every single construction',               rarity: 'Epic',      rarityColor: '#f97316', check: () => CONSTRUCTIONS.every(c => ownedConstructions[c.id]) },
+            { id: 'max_upgrade',      desc: '💎 Maxed an Upgrade',        name: 'Perfectionist',          how: 'Max out any single upgrade',                    rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => UPGRADES.some(u => (ownedUpgrades[u.id]||0) >= u.maxLevel) },
+            { id: 'max_5_upgrades',   desc: '🔮 5 Maxed Upgrades',        name: 'Overachiever',           how: 'Max out 5 different upgrades',                  rarity: 'Rare',      rarityColor: '#c084fc', check: () => UPGRADES.filter(u => (ownedUpgrades[u.id]||0) >= u.maxLevel).length >= 5 },
+            // Sandbox / misc
+            { id: 'sandbox_player',   desc: '📦 Sandbox Explorer',        name: 'Sandbox Explorer',       how: 'Play in a sandboxed environment',               rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => SafeStorage.mode === 'memory' },
+            { id: 'big_clicker',      desc: '⛏️ Click 500 Times',         name: 'Relentless Harvester',   how: 'Click the harvest button 500 times',            rarity: 'Common',    rarityColor: '#86efac', check: () => totalClicks >= 500 },
+            { id: 'mega_clicker',     desc: '🤜 Click 5,000 Times',       name: 'Carpal Tunnel Speedrun', how: 'Click the harvest button 5,000 times',          rarity: 'Uncommon',  rarityColor: '#60a5fa', check: () => totalClicks >= 5000 },
+            { id: 'buy_50_tiles',     desc: '🏗️ Place 50 Tiles',          name: 'Factory Floor',          how: 'Place 50 tiles on the factory floor',           rarity: 'Common',    rarityColor: '#86efac', check: () => Object.keys(grid).length >= 50 },
+            { id: 'buy_200_tiles',    desc: '🏙️ Place 200 Tiles',         name: 'Mega Factory',           how: 'Place 200 tiles on the factory floor',          rarity: 'Rare',      rarityColor: '#c084fc', check: () => Object.keys(grid).length >= 200 },
+            { id: 'night_owl',        desc: '🌙 Survive the Night',       name: 'Night Owl',              how: 'Play through a full night cycle',               rarity: 'Common',    rarityColor: '#86efac', check: () => nightsWitnessed >= 1 },
+            { id: 'speed_demon',      desc: '⚡ Max Belt Speed',          name: 'Speed Demon',            how: 'Reach a belt speed multiplier of 3.0x',         rarity: 'Rare',      rarityColor: '#c084fc', check: () => speedMultiplier >= 3.0 },
+            { id: 'multiplier_100',   desc: '💥 100x Multiplier',         name: 'Exponential Growth',     how: 'Reach a global multiplier of 100x',             rarity: 'Epic',      rarityColor: '#f97316', check: () => globalMultiplier >= 100 },
+        ];
+        let unlockedAchievements = {};
+        let goldenFruitsCaught = 0;
+
+        const FRUIT_TYPES = [
+            { emoji: '🍎', color: '#ef4444' },
+            { emoji: '🍊', color: '#f97316' },
+            { emoji: '🍋', color: '#eab308' },
+            { emoji: '🍇', color: '#a855f7' },
+            { emoji: '🍒', color: '#dc2626' },
+            { emoji: '🍓', color: '#f43f5e' },
+            { emoji: '🥝', color: '#4ade80' },
+            { emoji: '🍑', color: '#fb923c' },
+            { emoji: '🍍', color: '#facc15' },
+            { emoji: '🥭', color: '#f97316' },
+            { emoji: '🍌', color: '#fde047' },
+            { emoji: '🍈', color: '#86efac' },
+            { emoji: '🫐', color: '#6366f1' },
+            { emoji: '🍏', color: '#22c55e' },
+            { emoji: '🍉', color: '#f43f5e' },
+            { emoji: '🫒', color: '#65a30d' },
+            { emoji: '🥥', color: '#d6d3d1' },
+            { emoji: '🍆', color: '#7e22ce' },
+        ];
+
+        const VANITY_TYPES = new Set(['tree', 'flower', 'pond', 'sign', 'lamp', 'bench']);
+
+        const TOOL_CONFIG = {
+            conveyor:       { cost: 5,   color: '#3d3d3d', rail: '#222',     speed: 0.08, layer: 'ground',      stars: 1, tip: 'Moves fruit slowly in one direction. The backbone of any factory.' },
+            fastConveyor:   { cost: 20,  color: '#2563eb', rail: '#1e3a8a',  speed: 0.18, layer: 'ground',      stars: 2, tip: 'Moves fruit 2x faster than a basic belt. Great for longer runs.' },
+            turboConveyor:  { cost: 80,  color: '#7c3aed', rail: '#4c1d95',  speed: 0.32, layer: 'ground',      stars: 3, tip: 'Blazing fast belt. Gets fruit to collectors in record time.' },
+            dropper:        { cost: 25,  color: '#4b3621', accent: '#4ade80', yield: 5,   interval: 2500, layer: 'foreground', stars: 1, tip: 'Spawns fruit every 2.5s. Your first source of income.' },
+            megaDropper:    { cost: 150, color: '#1a2e1a', accent: '#38bdf8', yield: 30,  interval: 1500, layer: 'foreground', stars: 2, tip: 'Spawns fruit every 1.5s with higher value. A serious upgrade.' },
+            goldenDropper:  { cost: 500, color: '#78350f', accent: '#fbbf24', yield: 120, interval: 1000, layer: 'foreground', stars: 3, tip: 'Spawns every 1s with premium yield. Also has a golden fruit bonus.' },
+            refinery:       { cost: 75,  color: '#0ea5e9', border: '#0369a1', speed: 0.06, layer: 'foreground', stars: 2, tip: 'Doubles fruit value on contact. Can only apply once per fruit.' },
+            smelter:        { cost: 75,  color: '#f43f5e', border: '#9f1239', speed: 0.12, layer: 'foreground', stars: 2, tip: 'Reduces value slightly but doubles speed — great for long belts.' },
+            presser:        { cost: 200, color: '#059669', border: '#065f46', speed: 0.08, layer: 'foreground', stars: 3, tip: 'Triples fruit value. Requires Workshop construction to unlock.' },
+            juicer:         { cost: 350, color: '#d97706', border: '#92400e', speed: 0.09, layer: 'foreground', stars: 4, tip: '5x fruit value! The strongest processor. Requires Science Lab.' },
+            wall:           { cost: 10,  color: '#94a3b8', border: '#475569', layer: 'foreground',               stars: 1, tip: 'Blocks fruit from passing. Useful for routing.' },
+            collector:      { cost: 0,   color: '#5e2a00', bin: '#8b4513',    layer: 'ground',                   stars: 1, tip: 'Collects fruit and adds its value to your balance. Free!' },
+            upgradeStation: { cost: 400, color: '#0f172a', border: '#1e40af', layer: 'foreground',               stars: 3, tip: 'Boosts fruit value by 1.5x. Requires Boost Station construction.' },
+            tree:   { cost: 5,  emoji: '🌲', layer: 'foreground', vanity: true, stars: 1, tip: 'Decorative tree. Casts a nice shadow during the day.' },
+            flower: { cost: 3,  emoji: '🌸', layer: 'foreground', vanity: true, stars: 1, tip: 'A small flower decoration. Pure vibes.' },
+            pond:   { cost: 15, emoji: '💧', layer: 'ground',      vanity: true, stars: 1, tip: 'A decorative pond. Makes your factory feel alive.' },
+            sign:   { cost: 8,  emoji: '🪧', layer: 'foreground', vanity: true, stars: 1, tip: 'A sign. Label your factory however you like.' },
+            lamp:   { cost: 12, emoji: '🪔', layer: 'foreground', vanity: true, stars: 1, tip: 'A lamp. Helps your factory look great at night.' },
+            bench:  { cost: 10, emoji: '🪑', layer: 'foreground', vanity: true, stars: 1, tip: 'A bench. For your fruit workers to rest on.' },
+            edit: { cost: 0, stars: 0, tip: 'Select and move placed tiles. Delete with Backspace for a 50% refund.' }
+        };
+
+        const TOOL_META = {
+            conveyor:       { name: 'Basic Belt' },
+            fastConveyor:   { name: 'Fast Belt' },
+            turboConveyor:  { name: 'Turbo Belt' },
+            dropper:        { name: 'Basic Dropper' },
+            megaDropper:    { name: 'Mega Dropper' },
+            goldenDropper:  { name: 'Golden Dropper' },
+            refinery:       { name: 'Refinery' },
+            smelter:        { name: 'Smelter' },
+            presser:        { name: 'Presser' },
+            juicer:         { name: 'Juicer' },
+            wall:           { name: 'Wall' },
+            collector:      { name: 'Collector Bin' },
+            upgradeStation: { name: 'Boost Pad' },
+            tree:           { name: 'Tree' },
+            flower:         { name: 'Flower' },
+            pond:           { name: 'Pond' },
+            sign:           { name: 'Sign' },
+            lamp:           { name: 'Lamp' },
+            bench:          { name: 'Bench' },
+            edit:           { name: 'Edit Tool' },
+        };
+
+        const UPGRADES = [
+            // Level 0
+            { id: 'clickPower',    name: 'Super Harvest',      baseCost: 50,       reqLevel: 0, maxLevel: 10, desc: 'Clicking gives +$1',                onBuy: () => { clickPower += 1; } },
+            { id: 'speedBoost',    name: 'Swift Belts',         baseCost: 100,      reqLevel: 0, maxLevel: 5,  desc: 'All belts 15% faster',              onBuy: () => { speedMultiplier += 0.15; } },
+            { id: 'fruitSize',     name: 'Plump Fruit',         baseCost: 200,      reqLevel: 0, maxLevel: 5,  desc: 'Fruit base yield +50%',             onBuy: () => { globalMultiplier *= 1.5; } },
+            { id: 'fastHands',     name: 'Fast Hands',          baseCost: 400,      reqLevel: 0, maxLevel: 8,  desc: 'Clicking gives +$5',                onBuy: () => { clickPower += 5; } },
+            { id: 'beltLube',      name: 'Belt Lubricant',      baseCost: 750,      reqLevel: 0, maxLevel: 5,  desc: 'All belts 10% faster',              onBuy: () => { speedMultiplier += 0.10; } },
+            // Level 1
+            { id: 'natureBounty',  name: "Nature's Bounty",     baseCost: 1000,     reqLevel: 1, maxLevel: 8,  desc: 'Permanent 1.2x Multiplier',         onBuy: () => { globalMultiplier *= 1.2; } },
+            { id: 'rapidFire',     name: 'Rapid Harvest',       baseCost: 3000,     reqLevel: 1, maxLevel: 5,  desc: 'Droppers spawn 20% faster',         onBuy: () => { for(let key in grid){const t=grid[key];if(t.type.includes('dropper')){const d=droppers.find(d=>d.x===parseInt(key.split(',')[0])&&d.y===parseInt(key.split(',')[1]));if(d)d.config=Object.assign({},d.config,{interval:d.config.interval*0.8});}} } },
+            { id: 'megaClicks',    name: 'Titanium Pickaxe',    baseCost: 5000,     reqLevel: 1, maxLevel: 8,  desc: 'Clicking gives +$25',               onBuy: () => { clickPower += 25; } },
+            { id: 'goldenTouch',   name: 'Golden Touch',        baseCost: 15000,    reqLevel: 1, maxLevel: 5,  desc: '+1.5x on collected fruits',         onBuy: () => { globalMultiplier *= 1.5; } },
+            { id: 'fruitMagnet',   name: 'Fruit Magnet',        baseCost: 8000,     reqLevel: 1, maxLevel: 5,  desc: 'Fruit moves 25% faster on belts',   onBuy: () => { speedMultiplier += 0.25; } },
+            { id: 'seedling',      name: 'Super Seedling',      baseCost: 12000,    reqLevel: 1, maxLevel: 5,  desc: 'Dropper yield +2x',                 onBuy: () => { globalMultiplier *= 2; } },
+            // Level 2
+            { id: 'efficiency',    name: 'Global Efficiency',   baseCost: 25000,    reqLevel: 2, maxLevel: 5,  desc: 'Everything yields 2x more',         onBuy: () => { globalMultiplier *= 2; } },
+            { id: 'quantumBelt',   name: 'Quantum Belts',       baseCost: 75000,    reqLevel: 2, maxLevel: 4,  desc: 'Belt speed +25%',                   onBuy: () => { speedMultiplier += 0.25; } },
+            { id: 'superSmelter',  name: 'Ultra Smelter',       baseCost: 50000,    reqLevel: 2, maxLevel: 4,  desc: 'Belt speed +50%',                   onBuy: () => { speedMultiplier += 0.5; } },
+            { id: 'refinedOre',    name: 'Refined Process',     baseCost: 40000,    reqLevel: 2, maxLevel: 5,  desc: 'Refinery gives 3x instead of 2x',   onBuy: () => { globalMultiplier *= 1.5; } },
+            { id: 'juiceBoost',    name: 'Premium Juice',       baseCost: 60000,    reqLevel: 2, maxLevel: 5,  desc: '2x multiplier boost',               onBuy: () => { globalMultiplier *= 2; } },
+            { id: 'diamondHands',  name: 'Diamond Hands',       baseCost: 90000,    reqLevel: 2, maxLevel: 6,  desc: 'Clicking gives +$500',              onBuy: () => { clickPower += 500; } },
+            { id: 'overclocked',   name: 'Overclocked',         baseCost: 120000,   reqLevel: 2, maxLevel: 4,  desc: 'Droppers spawn 30% faster',         onBuy: () => { for(let key in grid){const t=grid[key];if(t.type.includes('dropper')){const d=droppers.find(d=>d.x===parseInt(key.split(',')[0])&&d.y===parseInt(key.split(',')[1]));if(d)d.config=Object.assign({},d.config,{interval:d.config.interval*0.7});}} } },
+            // Level 3
+            { id: 'prestige',      name: 'Prestige Power',      baseCost: 200000,   reqLevel: 3, maxLevel: 3,  reqConstruction: 'c_robotics', desc: '5x global multiplier',              onBuy: () => { globalMultiplier *= 5; } },
+            { id: 'hyperBelt',     name: 'Hyper Belt',          baseCost: 350000,   reqLevel: 3, maxLevel: 3,  reqConstruction: 'c_robotics', desc: 'Belt speed +75%',                   onBuy: () => { speedMultiplier += 0.75; } },
+            { id: 'godHarvest',    name: 'God Harvest',         baseCost: 500000,   reqLevel: 3, maxLevel: 5,  reqConstruction: 'c_robotics', desc: 'Clicking gives +$5000',             onBuy: () => { clickPower += 5000; } },
+            { id: 'fruitFusion',   name: 'Fruit Fusion',        baseCost: 750000,   reqLevel: 3, maxLevel: 3,  reqConstruction: 'c_robotics', desc: '3x global multiplier',              onBuy: () => { globalMultiplier *= 3; } },
+            { id: 'warpDrive',     name: 'Warp Drive',          baseCost: 1000000,  reqLevel: 3, maxLevel: 3,  reqConstruction: 'c_robotics', desc: 'Belt speed +100%',                  onBuy: () => { speedMultiplier += 1.0; } },
+            // Level 4
+            { id: 'cosmicYield',   name: 'Cosmic Yield',        baseCost: 5000000,  reqLevel: 4, maxLevel: 3,  reqConstruction: 'c_spaceship', desc: '10x global multiplier',             onBuy: () => { globalMultiplier *= 10; } },
+            { id: 'infiniteClick', name: 'Infinite Clicker',    baseCost: 2000000,  reqLevel: 4, maxLevel: 5,  reqConstruction: 'c_spaceship', desc: 'Clicking gives +$50000',            onBuy: () => { clickPower += 50000; } },
+            { id: 'lightspeed',    name: 'Lightspeed Belts',    baseCost: 3000000,  reqLevel: 4, maxLevel: 3,  reqConstruction: 'c_spaceship', desc: 'Belt speed +150%',                  onBuy: () => { speedMultiplier += 1.5; } },
+            { id: 'voidFruit',     name: 'Void Fruit',          baseCost: 8000000,  reqLevel: 4, maxLevel: 2,  reqConstruction: 'c_spaceship', desc: '25x global multiplier',             onBuy: () => { globalMultiplier *= 25; } },
+            { id: 'singularity',   name: 'Singularity',         baseCost: 25000000, reqLevel: 4, maxLevel: 1,  reqConstruction: 'c_spaceship', desc: '100x global multiplier 🤯',         onBuy: () => { globalMultiplier *= 100; } },
+        ];
+
+        const CONSTRUCTIONS = [
+            // Early (0-600)
+            { id: 'c_workshop',   name: 'Workshop',         cost: 500,   reqLevel: 0, desc: 'Unlocks Presser processor',        icon: '🔧', effect: 'unlockPresser' },
+            // Mid-game 600-5K
+            { id: 'c_greenhouse', name: 'Greenhouse',       cost: 800,   reqLevel: 0, desc: 'All droppers yield +25%',          icon: '🌿', effect: 'greenhouseBonus' },
+            { id: 'c_watermill',  name: 'Water Mill',       cost: 1200,  reqLevel: 1, desc: 'Belt speed permanently +20%',      icon: '💦', effect: 'watermillBonus' },
+            { id: 'c_orchard',    name: 'Orchard',          cost: 1500,  reqLevel: 1, desc: 'Droppers spawn 15% faster',        icon: '🍏', effect: 'orchardBonus' },
+            { id: 'c_turboHub',   name: 'Turbo Hub',        cost: 3000,  reqLevel: 1, desc: 'Unlocks Turbo Conveyor',           icon: '⚡', effect: 'unlockTurbo' },
+            { id: 'c_lab',        name: 'Science Lab',      cost: 2000,  reqLevel: 1, desc: 'Unlocks Juicer processor',         icon: '🔬', effect: 'unlockJuicer' },
+            { id: 'c_coldStorage',name: 'Cold Storage',     cost: 2500,  reqLevel: 1, desc: 'Fruit value decays 50% slower',    icon: '🧊', effect: 'coldStorage' },
+            { id: 'c_windmill',   name: 'Windmill',         cost: 3500,  reqLevel: 1, desc: 'Earn $50/sec passively',           icon: '🌀', effect: 'windmillIncome' },
+            { id: 'c_vault',      name: 'Money Vault',      cost: 5000,  reqLevel: 1, desc: 'Bank earns 5% interest/min',       icon: '🏦', effect: 'bankInterest' },
+            // Late mid-game 5K+
+            { id: 'c_boostPad',   name: 'Boost Station',    cost: 8000,  reqLevel: 2, desc: 'Unlocks Boost Pad building',       icon: '🏗️', effect: 'unlockBoostPad' },
+            { id: 'c_goldMine',   name: 'Gold Mine',        cost: 10000, reqLevel: 2, desc: 'Unlocks Golden Dropper',           icon: '⛏️', effect: 'unlockGolden' },
+            { id: 'c_solarFarm',  name: 'Solar Farm',       cost: 15000, reqLevel: 2, desc: 'Earn $500/sec passively',          icon: '☀️', effect: 'solarIncome' },
+            { id: 'c_mansion',    name: 'Factory Mansion',  cost: 25000, reqLevel: 2, desc: '3x click power bonus',             icon: '🏰', effect: 'mansionBonus' },
+            { id: 'c_robotics',   name: 'Robotics Lab',     cost: 40000, reqLevel: 3, desc: 'All processors give +1.5x yield',  icon: '🤖', effect: 'roboticsBonus' },
+            { id: 'c_spaceship',  name: 'Launch Pad',       cost: 100000,reqLevel: 4, desc: 'Cosmic 10x multiplier on collect', icon: '🚀', effect: 'spaceBonus' },
+        ];
+
+        let ownedUpgrades = {};
+        UPGRADES.forEach(u => ownedUpgrades[u.id] = 0);
+        // Ensure any newly added upgrades are initialized even on old saves
+        let ownedConstructions = {};
+        CONSTRUCTIONS.forEach(c => ownedConstructions[c.id] = false);
+
+        // Locked tools start hidden until construction
+        const lockedTools = {
+            turboConveyor:  'c_turboHub',
+            goldenDropper:  'c_goldMine',
+            presser:        'c_workshop',
+            juicer:         'c_lab',
+            upgradeStation: 'c_boostPad'
+        };
+        // Tools that are always unlocked (no construction needed)
+        // conveyor, fastConveyor, dropper, megaDropper, refinery, smelter, wall, collector, all vanity
+
+        let grid = {};
+        let items = [];
+        let droppers = [];
+        const particles = [];
+
+        let camX = 0, camY = 0;
+        let mouseX = 0, mouseY = 0;
+        let lastMouseX = 0, lastMouseY = 0;
+        let hasMouse = false; // true once a real mouse move is detected
+
+        // --- Notify ---
+        function notify(text) {
+            const container = document.getElementById('notification-container');
+            const el = document.createElement('div');
+            el.className = 'notification';
+            el.innerText = text;
+            container.appendChild(el);
+            setTimeout(() => el.classList.add('show'), 10);
+            setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+        }
+
+        function checkAchievements() {
+            let anyNew = false;
+            ACHIEVEMENTS.forEach(a => {
+                if (unlockedAchievements[a.id]) return; // already got it
+                let passed = false;
+                try { passed = a.check(); } catch(e) { return; }
+                if (!passed) return;
+                unlockedAchievements[a.id] = true;
+                anyNew = true;
+                const container = document.getElementById('notification-container');
+                const el = document.createElement('div');
+                el.className = 'notification';
+                el.style.borderLeftColor = '#f59e0b';
+                el.style.background = 'rgba(120,53,15,0.95)';
+                el.innerText = `🏆 Achievement: ${a.desc}`;
+                container.appendChild(el);
+                setTimeout(() => el.classList.add('show'), 10);
+                setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 4000);
+                playSound(1400, 'sine', 0.4);
+            });
+            if (anyNew) saveGame();
+        }
+
+        // --- Audio ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type = 'triangle', duration = 0.1, vol = 0.06) {
+            if (!soundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol * 1.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // --- Local Storage Save/Load ---
+        function saveGame(manual = false) {
+            const saveEl = document.getElementById('save-status');
+            saveEl.innerText = 'Saving...';
+            try {
+                const saveData = {
+                    balance, researchLevel, globalMultiplier, clickPower,
+                    speedMultiplier, totalItemsSold, peakMPS,
+                    totalEarned, totalRebirths, goldenFruitsCaught,
+                    totalClicks, nightsWitnessed,
+                    unlockedAchievements,
+                    ownedUpgrades, ownedConstructions, soundEnabled,
+                    gridSerialized: JSON.stringify(grid),
+                    lastSaved: Date.now(),
+                    exportVersion: 'NatureFactory_v6'
+                };
+                SafeStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                saveEl.innerText = SafeStorage.mode === 'memory' ? 'Saved (RAM)' : 'Saved ✓';
+                if (manual) notify('Game Saved Locally! 💾');
+                setTimeout(() => { if(saveEl.innerText === 'Saved ✓') saveEl.innerText = 'Ready'; }, 2000);
+            } catch(e) {
+                saveEl.innerText = 'Save Error';
+                if (manual) notify('Error saving game!');
+            }
+        }
+
+        function loadGame() {
+            try {
+                document.getElementById('loading-subtext').innerText = 'Checking Local Save...';
+                // Detect sandbox mode early so we can show it on loading screen
+                SafeStorage._detect();
+                if (SafeStorage.mode === 'memory') {
+                    document.getElementById('loading-subtext').innerText = 'Sandbox Mode — No Persistent Storage';
+                    document.getElementById('save-status').innerText = '⚠ Sandbox';
+                    document.getElementById('save-status').style.color = '#f59e0b';
+                }
+                const raw = SafeStorage.getItem(SAVE_KEY);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    balance = data.balance ?? 150;
+                    researchLevel = data.researchLevel ?? 0;
+                    globalMultiplier = data.globalMultiplier ?? 1.0;
+                    clickPower = data.clickPower ?? 1.0;
+                    speedMultiplier = data.speedMultiplier ?? 1.0;
+                    totalItemsSold = data.totalItemsSold ?? 0;
+                    peakMPS = data.peakMPS ?? 0;
+                    totalEarned = data.totalEarned ?? 0;
+                    totalRebirths = data.totalRebirths ?? 0;
+                    goldenFruitsCaught = data.goldenFruitsCaught ?? 0;
+                    totalClicks = data.totalClicks ?? 0;
+                    nightsWitnessed = data.nightsWitnessed ?? 0;
+                    unlockedAchievements = data.unlockedAchievements ?? {};
+                    ownedUpgrades = Object.assign({}, ownedUpgrades, data.ownedUpgrades ?? {});
+                    // Init any new upgrade IDs not in old save
+                    UPGRADES.forEach(u => { if (ownedUpgrades[u.id] === undefined) ownedUpgrades[u.id] = 0; });
+                    ownedConstructions = Object.assign({}, ownedConstructions, data.ownedConstructions ?? {});
+                    soundEnabled = data.soundEnabled ?? true;
+                    document.getElementById('sound-icon').innerText = soundEnabled ? '🔊' : '🔇';
+
+                    if (data.gridSerialized) {
+                        grid = JSON.parse(data.gridSerialized);
+                        droppers = [];
+                        for (let key in grid) {
+                            if (grid[key].type.includes('dropper')) {
+                                const [gx, gy] = key.split(',').map(Number);
+                                droppers.push({ x: gx, y: gy, lastSpawn: Date.now(), rot: grid[key].rot, config: TOOL_CONFIG[grid[key].type] });
+                            }
+                        }
+                    }
+                    updateLockedTools();
+                    updateUI();
+                    notify('Save Loaded! 🌿');
+                } else {
+                    notify('Welcome to Nature Factory! 🌳');
+                }
+            } catch(e) {
+                console.error('Load failed', e);
+                notify('Load failed. Starting fresh!');
+            } finally {
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('save-status').innerText = 'Ready';
+            }
+        }
+
+        // --- File Export / Import ---
+        function exportSave() {
+            const saveData = {
+                balance, researchLevel, globalMultiplier, clickPower,
+                speedMultiplier, totalItemsSold, peakMPS,
+                ownedUpgrades, ownedConstructions, soundEnabled,
+                gridSerialized: JSON.stringify(grid),
+                lastSaved: Date.now(),
+                exportVersion: 'NatureFactory_v6'
+            };
+            const json = JSON.stringify(saveData, null, 2);
+            const blob = new Blob([json], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const date = new Date().toISOString().slice(0,10);
+            a.href = url;
+            a.download = `nature-factory-${date}.fruit`;
+            a.click();
+            URL.revokeObjectURL(url);
+            notify('Save exported! 📤');
+            playSound(900, 'sine', 0.15);
+        }
+
+        function importSave(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    // Validate it's actually a Nature Factory save
+                    if (data.exportVersion !== 'NatureFactory_v6' && data.balance === undefined) {
+                        notify('❌ Invalid save file!');
+                        return;
+                    }
+                    balance = data.balance ?? 150;
+                    researchLevel = data.researchLevel ?? 0;
+                    globalMultiplier = data.globalMultiplier ?? 1.0;
+                    clickPower = data.clickPower ?? 1.0;
+                    speedMultiplier = data.speedMultiplier ?? 1.0;
+                    totalItemsSold = data.totalItemsSold ?? 0;
+                    peakMPS = data.peakMPS ?? 0;
+                    totalEarned = data.totalEarned ?? 0;
+                    totalRebirths = data.totalRebirths ?? 0;
+                    goldenFruitsCaught = data.goldenFruitsCaught ?? 0;
+                    totalClicks = data.totalClicks ?? 0;
+                    nightsWitnessed = data.nightsWitnessed ?? 0;
+                    unlockedAchievements = data.unlockedAchievements ?? {};
+                    ownedUpgrades = Object.assign({}, ownedUpgrades, data.ownedUpgrades ?? {});
+                    UPGRADES.forEach(u => { if (ownedUpgrades[u.id] === undefined) ownedUpgrades[u.id] = 0; });
+                    ownedConstructions = Object.assign({}, ownedConstructions, data.ownedConstructions ?? {});
+                    CONSTRUCTIONS.forEach(c => { if (ownedConstructions[c.id] === undefined) ownedConstructions[c.id] = false; });
+                    soundEnabled = data.soundEnabled ?? true;
+                    document.getElementById('sound-icon').innerText = soundEnabled ? '🔊' : '🔇';
+                    if (data.gridSerialized) {
+                        grid = JSON.parse(data.gridSerialized);
+                        droppers = [];
+                        for (let key in grid) {
+                            if (grid[key].type.includes('dropper')) {
+                                const [gx, gy] = key.split(',').map(Number);
+                                droppers.push({ x: gx, y: gy, lastSpawn: Date.now(), rot: grid[key].rot, config: TOOL_CONFIG[grid[key].type] });
+                            }
+                        }
+                    }
+                    // Also write to SafeStorage so it persists on this device too
+                    saveGame();
+                    updateLockedTools();
+                    updateUI();
+                    notify('Save imported! 🌿 Welcome back!');
+                    playSound(1200, 'sine', 0.3);
+                } catch(err) {
+                    notify('❌ Failed to read save file!');
+                    console.error('Import error:', err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateLockedTools() {
+            for (const [tool, constId] of Object.entries(lockedTools)) {
+                const btn = document.getElementById('btn-' + tool);
+                if (btn) {
+                    if (ownedConstructions[constId]) {
+                        btn.classList.remove('opacity-30', 'pointer-events-none');
+                    } else {
+                        btn.classList.add('opacity-30', 'pointer-events-none');
+                    }
+                }
+            }
+            // Apply vault interest
+            if (ownedConstructions['c_vault']) {
+                // handled in interval
+            }
+        }
+
+        // --- Core ---
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            camX = -canvas.width / 2;
+            camY = -canvas.height / 2;
+        }
+
+        window.setTool = (tool) => {
+            selectedTool = tool;
+            selectedObjectKey = null;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-' + tool);
+            if (btn) btn.classList.add('active');
+            // Show sell button only in edit mode
+            document.getElementById('btn-sell').classList.toggle('hidden', tool !== 'edit');
+        };
+
+        function rotateTool(dir) {
+            currentRotation = (currentRotation + dir + 4) % 4;
+            const icons = ['⬆️', '➡️', '⬇️', '⬅️'];
+            document.getElementById('rot-icon').innerText = icons[currentRotation];
+        }
+
+        function handleAction(cX, cY) {
+            const gx = Math.floor((cX + camX) / TILE_SIZE);
+            const gy = Math.floor((cY + camY) / TILE_SIZE);
+            const key = `${gx},${gy}`;
+
+            if (selectedTool === 'edit') {
+                if (isMouseDown) {
+                    if (selectedObjectKey && !grid[key]) {
+                        const oldObj = grid[selectedObjectKey];
+                        const [ogx, ogy] = selectedObjectKey.split(',').map(Number);
+                        const dIdx = droppers.findIndex(d => d.x === ogx && d.y === ogy);
+                        if (dIdx !== -1) { droppers[dIdx].x = gx; droppers[dIdx].y = gy; }
+                        delete grid[selectedObjectKey];
+                        grid[key] = oldObj;
+                        selectedObjectKey = key;
+                        playSound(400, 'sine', 0.05);
+                    } else if (grid[key]) {
+                        selectedObjectKey = key;
+                    }
+                }
+                return;
+            }
+
+            if (grid[key]) return;
+            const config = TOOL_CONFIG[selectedTool];
+            if (!config) return;
+            const cost = Math.max(0, config.cost);
+            if (balance >= cost) {
+                balance -= cost;
+                grid[key] = { type: selectedTool, rot: currentRotation };
+                if (selectedTool.includes('dropper')) {
+                    droppers.push({ x: gx, y: gy, lastSpawn: Date.now(), rot: currentRotation, config: config });
+                }
+                playSound(config.cost > 0 ? 500 : 300, 'sine', 0.05);
+                checkAchievements();
+                updateUI();
+            }
+        }
+
+        function createParticles(gx, gy, color, count = 8, spread = 4) {
+            for (let i = 0; i < count; i++) {
+                particles.push({ x: gx, y: gy, vx: (Math.random() - 0.5) * spread, vy: (Math.random() - 0.5) * spread, life: 1.0, color });
+            }
+        }
+
+        function getUpgradeCost(up) {
+            const rebirthMult = Math.pow(2, researchLevel);
+            return Math.ceil(up.baseCost * Math.pow(1.6, ownedUpgrades[up.id]) * rebirthMult);
+        }
+
+        // --- Tabs ---
+        let currentTab = 'upgrades';
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('upgrade-list').classList.toggle('hidden', tab !== 'upgrades');
+            document.getElementById('construction-list').classList.toggle('hidden', tab !== 'construction');
+            document.getElementById('achievement-list').classList.toggle('hidden', tab !== 'achievements');
+            ['upgrades','construction','achievements'].forEach(t => {
+                const btn = document.getElementById('tab-' + t);
+                btn.className = `tab-btn flex-1 py-2 rounded-2xl font-black text-sm interactable border-2 ${tab === t ? 'bg-purple-600 text-white border-purple-800 active' : 'bg-slate-200 text-slate-700 border-slate-300'}`;
+            });
+            if (tab === 'upgrades') renderUpgradeList();
+            else if (tab === 'construction') renderConstructionList();
+            else renderAchievementList();
+        }
+
+        function renderAchievementList() {
+            const container = document.getElementById('achievement-list');
+            container.innerHTML = '';
+            const unlocked = ACHIEVEMENTS.filter(a => unlockedAchievements[a.id]);
+            const locked   = ACHIEVEMENTS.filter(a => !unlockedAchievements[a.id]);
+            const pct = Math.round((unlocked.length / ACHIEVEMENTS.length) * 100);
+
+            // Progress bar
+            const barWrap = document.createElement('div');
+            barWrap.style.cssText = 'margin-bottom:14px';
+            barWrap.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                    <span style="font-size:11px;font-weight:900;color:#7c3aed;text-transform:uppercase;letter-spacing:1px">🏆 Completion</span>
+                    <span style="font-size:11px;font-weight:900;color:#7c3aed">${unlocked.length} / ${ACHIEVEMENTS.length} &nbsp;(${pct}%)</span>
+                </div>
+                <div style="width:100%;height:14px;background:rgba(0,0,0,0.1);border-radius:99px;overflow:hidden;border:2px solid #e2e8f0">
+                    <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7c3aed,#a855f7,#fbbf24);border-radius:99px;transition:width 0.5s ease"></div>
+                </div>
+                ${pct === 100 ? '<p style="text-align:center;font-size:11px;font-weight:900;color:#fbbf24;margin-top:6px">🎉 ALL ACHIEVEMENTS UNLOCKED!</p>' : ''}
+            `;
+            container.appendChild(barWrap);
+
+            if (unlocked.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-center text-slate-400 font-bold text-sm py-4';
+                empty.innerText = 'No achievements yet — get playing! 🌱';
+                container.appendChild(empty);
+            }
+            const makeCard = (a, isUnlocked) => {
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'cursor:pointer;user-select:none';
+
+                const div = document.createElement('div');
+                div.className = isUnlocked
+                    ? 'border-2 border-yellow-300 p-3 rounded-2xl flex items-center justify-between gap-3'
+                    : 'border-2 border-slate-200 p-3 rounded-2xl flex items-center justify-between gap-3 opacity-50';
+                div.style.background = isUnlocked ? '#fefce8' : '#f1f5f9';
+
+                div.innerHTML = isUnlocked
+                    ? `<div class="flex items-center gap-3"><span class="text-2xl">🏆</span><div><p class="font-black text-yellow-800">${a.desc}</p><p style="font-size:10px;color:${a.rarityColor};font-weight:900">✦ ${a.rarity}</p></div></div><span style="background:#fbbf24;color:#000;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:900">INFO</span>`
+                    : `<div class="flex items-center gap-3"><span class="text-2xl">🔒</span><div><p class="font-black text-slate-500">???</p><p style="font-size:10px;color:${a.rarityColor};font-weight:900">✦ ${a.rarity}</p></div></div><span style="background:#64748b;color:#fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:900">INFO</span>`;
+
+                // Inline detail panel — expands downward inside modal, no overflow
+                const detail = document.createElement('div');
+                detail.style.cssText = `display:none;margin-top:6px;padding:10px 14px;background:rgba(10,15,30,0.95);color:#fff;border-radius:12px;border:2px solid ${a.rarityColor};font-size:11px;line-height:1.6`;
+                detail.innerHTML = isUnlocked
+                    ? `<div style="font-weight:900;font-size:13px;margin-bottom:4px">${a.name}</div>
+                       <div style="color:#94a3b8;margin-bottom:6px">${a.how}</div>
+                       <div style="color:${a.rarityColor};font-weight:900;font-size:10px;text-transform:uppercase">✦ ${a.rarity}</div>`
+                    : `<div style="font-weight:900;font-size:13px;margin-bottom:4px">???</div>
+                       <div style="color:#94a3b8;margin-bottom:6px">${a.rarity === 'Epic' || a.rarity === 'Legendary' ? '??? — keep playing to find out' : a.how}</div>
+                       <div style="color:${a.rarityColor};font-weight:900;font-size:10px;text-transform:uppercase">✦ ${a.rarity}</div>`;
+
+                let open = false;
+                wrap.addEventListener('click', () => {
+                    open = !open;
+                    detail.style.display = open ? 'block' : 'none';
+                    const badge = div.querySelector('span:last-child');
+                    if (badge) badge.textContent = open ? 'CLOSE' : 'INFO';
+                });
+
+                wrap.appendChild(div);
+                wrap.appendChild(detail);
+                container.appendChild(wrap);
+            };
+            unlocked.forEach(a => makeCard(a, true));
+            locked.forEach(a => makeCard(a, false));
+        }
+
+        function renderUpgradeList() {
+            const container = document.getElementById('upgrade-list');
+            document.getElementById('modal-res-level').innerText = researchLevel;
+            document.getElementById('stat-total-items').innerText = totalItemsSold.toLocaleString();
+            document.getElementById('stat-peak-mps').innerText = formatNumber(peakMPS);
+            document.getElementById('stat-total-earned').innerText = formatNumber(totalEarned);
+            document.getElementById('stat-rebirths').innerText = totalRebirths;
+            document.getElementById('stat-golden').innerText = `${goldenFruitsCaught} ⭐`;
+            document.getElementById('stat-rebirth-mult').innerText = `${Math.pow(2, researchLevel)}×`;
+            container.innerHTML = '';
+            UPGRADES.forEach(up => {
+                const level = ownedUpgrades[up.id] || 0;
+                const isMaxed = level >= up.maxLevel;
+                const cost = getUpgradeCost(up);
+                const isLevelLocked = researchLevel < up.reqLevel;
+                const isConstLocked = up.reqConstruction && !ownedConstructions[up.reqConstruction];
+                const isLocked = isLevelLocked || isConstLocked;
+
+                const div = document.createElement('div');
+                div.className = `bg-slate-100 p-4 rounded-2xl flex justify-between items-center border-2 ${isMaxed ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200'} ${isLocked ? 'locked-upgrade' : ''}`;
+
+                const upBtn = document.createElement('button');
+                if (isMaxed) {
+                    upBtn.className = "bg-yellow-400 text-yellow-900 px-4 py-2 rounded-xl font-bold min-w-[80px] cursor-not-allowed";
+                    upBtn.innerText = '★ MAX';
+                    upBtn.disabled = true;
+                } else {
+                    upBtn.className = "bg-purple-600 text-white px-4 py-2 rounded-xl font-bold min-w-[80px] interactable";
+                    upBtn.innerText = formatNumber(cost);
+                    upBtn.onclick = () => {
+                        if (balance >= cost && !isLevelLocked && !isConstLocked && !isMaxed) {
+                            balance -= cost;
+                            ownedUpgrades[up.id]++;
+                            up.onBuy();
+                            speedMultiplier = Math.min(speedMultiplier, 3.0);
+                            notify(`Upgrade: ${up.name}! ✨`);
+                            renderUpgradeList();
+                            updateUI();
+                            checkAchievements();
+                            playSound(1200, 'sine', 0.2);
+                            saveGame();
+                        }
+                    };
+                }
+
+                const levelText = isMaxed
+                    ? `<span class="text-[10px] font-black text-yellow-600">★ MAXED (${level}/${up.maxLevel})</span>`
+                    : level > 0
+                        ? `<span class="text-[10px] font-black text-purple-600">Lv.${level}/${up.maxLevel}</span>`
+                        : `<span class="text-[10px] text-slate-400 font-bold">Max: ${up.maxLevel}</span>`;
+
+                // Build lock reason text
+                let lockHtml = '';
+                if (isLevelLocked) lockHtml += `<p class="text-[10px] text-purple-600 font-black mt-1">🔒 Requires Research Lvl ${up.reqLevel}</p>`;
+                if (isConstLocked) {
+                    const c = CONSTRUCTIONS.find(c => c.id === up.reqConstruction);
+                    lockHtml += `<p class="text-[10px] text-orange-600 font-black mt-1">🏗️ Requires: ${c ? c.icon + ' ' + c.name : up.reqConstruction}</p>`;
+                }
+                // Show rebirth cost multiplier hint
+                const rebirthHint = researchLevel > 0
+                    ? `<span class="text-[9px] text-red-400 font-bold ml-1">(×${Math.pow(2,researchLevel)} rebirth)</span>`
+                    : '';
+
+                div.innerHTML = `<div class="flex-1"><p class="font-black text-slate-800">${up.name} ${levelText}${rebirthHint}</p><p class="text-[10px] text-slate-500 font-bold">${up.desc}</p>${lockHtml}</div>`;
+                div.appendChild(upBtn);
+                container.appendChild(div);
+            });
+        }
+
+        function renderConstructionList() {
+            const container = document.getElementById('construction-list');
+            document.getElementById('modal-res-level').innerText = researchLevel;
+            container.innerHTML = '';
+            CONSTRUCTIONS.forEach(c => {
+                const isLocked = researchLevel < c.reqLevel;
+                const owned = ownedConstructions[c.id];
+                const div = document.createElement('div');
+                div.className = `bg-slate-100 p-4 rounded-2xl flex justify-between items-center border-2 border-slate-200 ${isLocked ? 'locked-upgrade' : ''}`;
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-2 rounded-xl font-bold min-w-[80px] interactable ${owned ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`;
+                btn.innerText = owned ? 'Built ✓' : `$${c.cost.toLocaleString()}`;
+                if (!owned) {
+                    btn.onclick = () => {
+                        if (balance >= c.cost && researchLevel >= c.reqLevel) {
+                            balance -= c.cost;
+                            ownedConstructions[c.id] = true;
+                            applyConstruction(c);
+                            notify(`Constructed: ${c.name}! ${c.icon}`);
+                            renderConstructionList();
+                            updateUI();
+                            updateLockedTools();
+                            checkAchievements();
+                            playSound(1000, 'triangle', 0.3);
+                            saveGame();
+                        }
+                    };
+                }
+                div.innerHTML = `<div class="flex items-center gap-3 flex-1"><span class="text-3xl">${c.icon}</span><div><p class="font-black text-slate-800">${c.name}</p><p class="text-[10px] text-slate-500 font-bold">${c.desc}</p>${isLocked ? `<p class="text-[10px] text-purple-600 font-black mt-1">Requires Research Lvl ${c.reqLevel}</p>` : ''}</div></div>`;
+                div.appendChild(btn);
+                container.appendChild(div);
+            });
+        }
+
+        function applyConstruction(c) {
+            if (c.effect === 'mansionBonus') clickPower *= 3;
+            if (c.effect === 'greenhouseBonus') globalMultiplier *= 1.25;
+            if (c.effect === 'watermillBonus') speedMultiplier += 0.20;
+            if (c.effect === 'orchardBonus') {
+                for (let key in grid) {
+                    const t = grid[key];
+                    if (t.type.includes('dropper')) {
+                        const d = droppers.find(d => d.x === parseInt(key.split(',')[0]) && d.y === parseInt(key.split(',')[1]));
+                        if (d) d.config = Object.assign({}, d.config, { interval: d.config.interval * 0.85 });
+                    }
+                }
+            }
+            if (c.effect === 'roboticsBonus') globalMultiplier *= 1.5;
+            if (c.effect === 'spaceBonus') globalMultiplier *= 10;
+        }
+
+        function updateUI() {
+            document.getElementById('balance-display').innerText = formatNumber(balance);
+            document.getElementById('multiplier-text').innerText = `Multi: ${formatNumber(globalMultiplier).replace('$','')}x`;
+            document.getElementById('mps-display').innerText = `MPS: ${formatNumber(currentMPS)}/s`;
+            document.getElementById('click-value-text').innerText = `+${formatNumber(clickPower)}`;
+
+            const researchBtn = document.getElementById('research-btn');
+            const progressContainer = document.getElementById('research-progress-container');
+            const barFill = document.getElementById('research-bar-fill');
+            const percentText = document.getElementById('research-percent');
+            const progress = Math.min(100, (balance / RESEARCH_COST) * 100);
+            if (balance >= RESEARCH_COST) {
+                researchBtn.classList.remove('hidden');
+                progressContainer.classList.add('hidden');
+            } else {
+                researchBtn.classList.add('hidden');
+                progressContainer.classList.remove('hidden');
+                barFill.style.width = `${progress}%`;
+                percentText.innerText = `${Math.floor(progress)}%`;
+            }
+        }
+
+        // ─── Draw ───────────────────────────────────────────────────────────────────
+
+        function drawTile(type, rot, gx, gy, isGhost = false, isSelected = false) {
+            const x = gx * TILE_SIZE - camX;
+            const y = gy * TILE_SIZE - camY;
+            const config = TOOL_CONFIG[type];
+            if (!config) return;
+
+            ctx.save();
+            ctx.globalAlpha = isGhost ? 0.4 : 1.0;
+            ctx.translate(x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+            ctx.rotate(rot * Math.PI / 2);
+
+            if (isSelected) {
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+                ctx.strokeRect(-TILE_SIZE / 2, -TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
+            }
+
+            // Vanity tiles
+            if (config.vanity) {
+                ctx.font = '40px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(config.emoji, 0, 0);
+                ctx.restore();
+                return;
+            }
+
+            if (type.includes('conveyor')) {
+                const isFast = type === 'fastConveyor', isTurbo = type === 'turboConveyor';
+                const colors = isTurbo ? ['#4c1d95','#7c3aed'] : isFast ? ['#1e3a8a','#2563eb'] : ['#222','#3d3d3d'];
+                ctx.fillStyle = colors[0]; ctx.fillRect(-TILE_SIZE/2, -TILE_SIZE/2, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = colors[1]; ctx.fillRect(-TILE_SIZE/2+6, -TILE_SIZE/2, TILE_SIZE-12, TILE_SIZE);
+                // Animated stripes
+                ctx.fillStyle = '#ffffff33';
+                const spd = isTurbo ? 4 : isFast ? 9 : 22;
+                const offset = (Date.now() / spd) % 16;
+                for (let i = -TILE_SIZE/2-16; i < TILE_SIZE/2; i += 16)
+                    ctx.fillRect(-TILE_SIZE/2+8, i+offset, TILE_SIZE-16, isTurbo ? 5 : isFast ? 4 : 2);
+                // Direction arrow
+                ctx.fillStyle = isTurbo ? '#e9d5ff' : isFast ? '#bfdbfe' : '#aaa';
+                ctx.font = `bold ${isTurbo ? 18 : 14}px sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(isTurbo ? '⚡⚡' : isFast ? '⚡' : '▶', 0, 0);
+                // Label badge
+                if (!isGhost) {
+                    const label = isTurbo ? 'TURBO' : isFast ? 'FAST' : 'BELT';
+                    const bgCol = isTurbo ? '#7c3aed' : isFast ? '#2563eb' : '#444';
+                    ctx.font = 'bold 7px sans-serif';
+                    const tw = ctx.measureText(label).width;
+                    ctx.fillStyle = bgCol;
+                    ctx.fillRect(-tw/2-3, TILE_SIZE/2-13, tw+6, 11);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(label, 0, TILE_SIZE/2-8);
+                }
+            } else if (type.includes('dropper')) {
+                const isGold = type === 'goldenDropper', isMega = type === 'megaDropper';
+                // Background
+                ctx.fillStyle = config.color;
+                ctx.fillRect(-TILE_SIZE/2+4, -TILE_SIZE/2+4, TILE_SIZE-8, TILE_SIZE-8);
+                // Accent circle
+                ctx.fillStyle = config.accent;
+                ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE/4, 0, Math.PI*2); ctx.fill();
+                // Tier rings
+                if (isGold) {
+                    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE/3, 0, Math.PI*2); ctx.stroke();
+                    ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE/3+5, 0, Math.PI*2); ctx.stroke();
+                } else if (isMega) {
+                    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.arc(0, 0, TILE_SIZE/3, 0, Math.PI*2); ctx.stroke();
+                }
+                // Emoji icon
+                ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(isGold ? '⭐' : isMega ? '🌳' : '🌱', 0, 0);
+                // Label badge
+                if (!isGhost) {
+                    const label = isGold ? 'GOLD' : isMega ? 'MEGA' : 'DROP';
+                    const bgCol = isGold ? '#92400e' : isMega ? '#0369a1' : '#3d2a10';
+                    ctx.font = 'bold 7px sans-serif';
+                    const tw = ctx.measureText(label).width;
+                    ctx.fillStyle = bgCol;
+                    ctx.fillRect(-tw/2-3, TILE_SIZE/2-13, tw+6, 11);
+                    ctx.fillStyle = isGold ? '#fde68a' : '#fff';
+                    ctx.fillText(label, 0, TILE_SIZE/2-8);
+                }
+            } else if (type === 'refinery' || type === 'smelter' || type === 'presser' || type === 'juicer') {
+                ctx.fillStyle = config.border; ctx.fillRect(-TILE_SIZE/2, -TILE_SIZE/2, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = config.color; ctx.fillRect(-TILE_SIZE/2+6, -TILE_SIZE/2+6, TILE_SIZE-12, TILE_SIZE-12);
+                ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(-TILE_SIZE/4, -TILE_SIZE/4, TILE_SIZE/2, TILE_SIZE/2);
+                ctx.font = '22px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                const icons = { refinery: '💎', smelter: '🔥', presser: '⚙️', juicer: '🧪' };
+                ctx.fillText(icons[type], 0, -4);
+                if (!isGhost) {
+                    const labels = { refinery: 'REFINE', smelter: 'SMELT', presser: 'PRESS', juicer: 'JUICE' };
+                    ctx.font = 'bold 7px sans-serif';
+                    const tw = ctx.measureText(labels[type]).width;
+                    ctx.fillStyle = config.border;
+                    ctx.fillRect(-tw/2-3, TILE_SIZE/2-13, tw+6, 11);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(labels[type], 0, TILE_SIZE/2-8);
+                }
+            } else if (type === 'wall') {
+                ctx.fillStyle = config.border; ctx.fillRect(-TILE_SIZE/2, -TILE_SIZE/2, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = config.color; ctx.fillRect(-TILE_SIZE/2+10, -TILE_SIZE/2+10, TILE_SIZE-20, TILE_SIZE-20);
+                ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('🧱', 0, 0);
+            } else if (type === 'collector') {
+                ctx.fillStyle = config.color; ctx.fillRect(-TILE_SIZE/2+2, -TILE_SIZE/2+2, TILE_SIZE-4, TILE_SIZE-4);
+                ctx.fillStyle = config.bin; ctx.fillRect(-TILE_SIZE/2+12, -TILE_SIZE/2+12, TILE_SIZE-24, TILE_SIZE-24);
+                ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('🧺', 0, 0);
+            } else if (type === 'upgradeStation') {
+                ctx.fillStyle = config.border; ctx.fillRect(-TILE_SIZE/2, -TILE_SIZE/2, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = config.color; ctx.fillRect(-TILE_SIZE/2+4, -TILE_SIZE/2+4, TILE_SIZE-8, TILE_SIZE-8);
+                ctx.font = '22px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('🏗️', 0, -4);
+                if (!isGhost) {
+                    ctx.font = 'bold 7px sans-serif';
+                    const tw = ctx.measureText('BOOST').width;
+                    ctx.fillStyle = '#1e40af';
+                    ctx.fillRect(-tw/2-3, TILE_SIZE/2-13, tw+6, 11);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText('BOOST', 0, TILE_SIZE/2-8);
+                }
+            }
+            ctx.restore();
+        }
+
+        // ─── Day/Night Cycle ────────────────────────────────────────────────────────
+        const DAY_DURATION = 5 * 60 * 1000; // 5 minutes in ms
+        const gameStartTime = Date.now();
+
+        function getDayPhase() {
+            // 0.0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk, 1.0 = midnight
+            return ((Date.now() - gameStartTime) % DAY_DURATION) / DAY_DURATION;
+        }
+
+        function getSkyColor(phase) {
+            // Key colours at phase points
+            const stops = [
+                { p: 0.00, r: 10,  g: 10,  b: 35  }, // midnight
+                { p: 0.20, r: 15,  g: 15,  b: 50  }, // pre-dawn
+                { p: 0.25, r: 255, g: 120, b: 50  }, // dawn
+                { p: 0.35, r: 135, g: 180, b: 100 }, // morning
+                { p: 0.50, r: 90,  g: 160, b: 70  }, // noon (green-tinted day)
+                { p: 0.65, r: 120, g: 170, b: 90  }, // afternoon
+                { p: 0.75, r: 255, g: 100, b: 40  }, // dusk
+                { p: 0.85, r: 30,  g: 20,  b: 60  }, // post-dusk
+                { p: 1.00, r: 10,  g: 10,  b: 35  }, // midnight
+            ];
+            for (let i = 0; i < stops.length - 1; i++) {
+                const a = stops[i], b = stops[i + 1];
+                if (phase >= a.p && phase <= b.p) {
+                    const t = (phase - a.p) / (b.p - a.p);
+                    return {
+                        r: Math.round(a.r + (b.r - a.r) * t),
+                        g: Math.round(a.g + (b.g - a.g) * t),
+                        b: Math.round(a.b + (b.b - a.b) * t)
+                    };
+                }
+            }
+            return { r: 10, g: 10, b: 35 };
+        }
+
+        function getSunPosition(phase) {
+            // Sun rises at phase 0.25, sets at 0.75
+            // Returns { angle (radians from east), elevation (0=horizon, 1=zenith), isDay }
+            const isDay = phase >= 0.25 && phase <= 0.75;
+            const sunPhase = (phase - 0.25) / 0.5; // 0 to 1 during day
+            const elevation = isDay ? Math.sin(sunPhase * Math.PI) : 0;
+            const angle = sunPhase * Math.PI; // 0=east, PI/2=south, PI=west
+            return { angle, elevation, isDay };
+        }
+
+        function drawShadow(gx, gy, sun) {
+            if (!sun.isDay || sun.elevation < 0.05) return;
+            const x = gx * TILE_SIZE - camX + TILE_SIZE / 2;
+            const y = gy * TILE_SIZE - camY + TILE_SIZE / 2;
+            // Shadow length: long at horizon, short at noon
+            const shadowLength = TILE_SIZE * 1.4 * (1 - sun.elevation * 0.85);
+            // Shadow direction: opposite to sun (sun from east=right, shadow goes left)
+            const shadowAngle = sun.angle + Math.PI; // opposite of sun
+            const sx = Math.cos(shadowAngle - Math.PI / 2) * shadowLength;
+            const sy = Math.sin(shadowAngle - Math.PI / 2) * shadowLength * 0.5; // flatten vertically
+            const alpha = 0.35 * sun.elevation;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.ellipse(
+                x + sx, y + sy + TILE_SIZE * 0.3,
+                TILE_SIZE * 0.38, TILE_SIZE * 0.15,
+                Math.atan2(sy, sx),
+                0, Math.PI * 2
+            );
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function draw() {
+            const phase = getDayPhase();
+            const sky = getSkyColor(phase);
+            const sun = getSunPosition(phase);
+            const isNight = phase < 0.22 || phase > 0.78;
+
+            // Base ground
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = '#417d3a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#4da344';
+            const startX = Math.floor(camX / 128) * 128, startY = Math.floor(camY / 128) * 128;
+            for (let x = startX - 128; x < canvas.width + startX + 128; x += 128)
+                for (let y = startY - 128; y < canvas.height + startY + 128; y += 128)
+                    if ((Math.abs(x / 128) + Math.abs(y / 128)) % 2 === 0) ctx.fillRect(x - camX, y - camY, 128, 128);
+
+            // Sky colour overlay
+            const skyAlpha = isNight ? 0.55 : (phase < 0.3 || phase > 0.7) ? 0.35 : 0.18;
+            ctx.globalAlpha = skyAlpha;
+            ctx.fillStyle = `rgb(${sky.r},${sky.g},${sky.b})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1.0;
+
+            // Ground layer tiles
+            for (let key in grid) {
+                const tile = grid[key];
+                if (TOOL_CONFIG[tile.type]?.layer === 'ground') {
+                    const [gx, gy] = key.split(',').map(Number);
+                    drawTile(tile.type, tile.rot, gx, gy, false, selectedObjectKey === key);
+                }
+            }
+
+            // Items with income label above
+            items.forEach(item => {
+                const x = item.x * TILE_SIZE - camX + TILE_SIZE / 2;
+                const y = item.y * TILE_SIZE - camY + TILE_SIZE / 2;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(item.scale, item.scale);
+                ctx.font = '32px serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(item.emoji, 0, 0);
+                ctx.font = 'bold 10px Segoe UI, sans-serif';
+                ctx.textBaseline = 'bottom';
+                const label = formatNumber(item.yield);
+                const tw = ctx.measureText(label).width;
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(-tw / 2 - 3, -24, tw + 6, 14, 4) : ctx.rect(-tw / 2 - 3, -24, tw + 6, 14);
+                ctx.fill();
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText(label, 0, -12);
+                ctx.restore();
+            });
+
+            // Shadows for foreground tiles (drawn before tiles so tiles sit on top)
+            for (let key in grid) {
+                const tile = grid[key];
+                if (TOOL_CONFIG[tile.type]?.layer === 'foreground' && !TOOL_CONFIG[tile.type]?.vanity) {
+                    const [gx, gy] = key.split(',').map(Number);
+                    drawShadow(gx, gy, sun);
+                }
+            }
+            // Shadows for vanity too (trees cast nice shadows)
+            for (let key in grid) {
+                const tile = grid[key];
+                if (TOOL_CONFIG[tile.type]?.vanity) {
+                    const [gx, gy] = key.split(',').map(Number);
+                    drawShadow(gx, gy, sun);
+                }
+            }
+
+            // Foreground layer tiles
+            for (let key in grid) {
+                const tile = grid[key];
+                if (TOOL_CONFIG[tile.type]?.layer === 'foreground') {
+                    const [gx, gy] = key.split(',').map(Number);
+                    drawTile(tile.type, tile.rot, gx, gy, false, selectedObjectKey === key);
+                }
+            }
+
+            // Night stars overlay
+            if (isNight) {
+                ctx.globalAlpha = Math.min(0.7, (phase < 0.5 ? (0.22 - phase) : (phase - 0.78)) * 8);
+                ctx.fillStyle = '#fff';
+                // Deterministic star positions using seeded positions
+                const stars = [[0.1,0.05],[0.3,0.12],[0.7,0.08],[0.9,0.03],[0.2,0.18],[0.5,0.02],[0.8,0.15],[0.6,0.22],[0.4,0.07],[0.15,0.25],[0.85,0.2],[0.55,0.1]];
+                stars.forEach(([sx, sy]) => {
+                    ctx.fillRect(sx * canvas.width, sy * canvas.height, 2, 2);
+                });
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Night owl tracking — count each time we enter a night phase
+            const nowIsNight = phase < 0.22 || phase > 0.78;
+            if (nowIsNight && !_wasNight) nightsWitnessed++;
+            _wasNight = nowIsNight;
+
+            const mx = Math.floor((mouseX + camX) / TILE_SIZE);
+            const my = Math.floor((mouseY + camY) / TILE_SIZE);
+            if (selectedTool !== 'edit' && hasMouse) drawTile(selectedTool, currentRotation, mx, my, true);
+
+            ctx.save();
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x * TILE_SIZE - camX + TILE_SIZE / 2, p.y * TILE_SIZE - camY + TILE_SIZE / 2, 4, 4);
+                p.x += p.vx / TILE_SIZE; p.y += p.vy / TILE_SIZE; p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            ctx.restore();
+
+            requestAnimationFrame(draw);
+        }
+
+        // Category colours for active state
+        const CAT_COLORS = {
+            conveyors:   { bg: '#64748b', border: '#475569' },
+            droppers:    { bg: '#16a34a', border: '#14532d' },
+            compressors: { bg: '#ea580c', border: '#9a3412' },
+            misc:        { bg: '#ca8a04', border: '#713f12' },
+            decorations: { bg: '#9333ea', border: '#581c87' },
+        };
+        let activeCategory = 'conveyors';
+
+        function filterToolbar(cat) {
+            activeCategory = cat;
+            // Update category button styles
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                const c = btn.dataset.cat;
+                if (c === cat) {
+                    btn.style.background = CAT_COLORS[c].bg;
+                    btn.style.borderColor = CAT_COLORS[c].border;
+                    btn.style.color = 'white';
+                    btn.style.transform = 'scale(1.08)';
+                    btn.style.boxShadow = `0 0 12px ${CAT_COLORS[c].bg}99`;
+                } else {
+                    btn.style.background = 'rgba(15,23,42,0.7)';
+                    btn.style.borderColor = 'rgba(255,255,255,0.1)';
+                    btn.style.color = '#cbd5e1';
+                    btn.style.transform = '';
+                    btn.style.boxShadow = '';
+                }
+            });
+            // Show/hide tool buttons
+            document.querySelectorAll('#tool-menu button[data-cat], #tool-menu [data-cat="always"]').forEach(btn => {
+                const c = btn.dataset.cat;
+                if (c === 'always' || c === cat) {
+                    btn.style.display = '';
+                } else {
+                    btn.style.display = 'none';
+                }
+            });
+            // Update toolbar accent border color
+            document.getElementById('tool-menu').style.borderColor = CAT_COLORS[cat]?.border || '#14532d';
+            // Reset scroll
+            document.getElementById('tool-menu').scrollLeft = 0;
+        }
+
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => filterToolbar(btn.dataset.cat));
+        });
+
+        // Init filter
+        filterToolbar('conveyors');
+
+        // ─── Toolbar Tooltips ──────────────────────────────────────────────────────
+        const toolTip = document.getElementById('tool-tooltip');
+        function starsHtml(n) {
+            const colors = { 1: '#86efac', 2: '#60a5fa', 3: '#c084fc', 4: '#f97316', 5: '#fbbf24' };
+            const labels = { 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
+            const filled = '★'.repeat(n), empty = '☆'.repeat(5 - n);
+            return `<span style="color:${colors[n]||'#fff'};font-size:13px">${filled}</span><span style="color:#444;font-size:13px">${empty}</span> <span style="color:${colors[n]||'#fff'};font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase">${labels[n]||''}</span>`;
+        }
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            const toolId = btn.id.replace('btn-', '');
+            const config = TOOL_CONFIG[toolId];
+            const meta = TOOL_META[toolId];
+            if (!config || !meta) return;
+            btn.addEventListener('mouseenter', (e) => {
+                const costStr = config.cost > 0 ? `<span style="color:#fbbf24;font-weight:900">$${config.cost.toLocaleString()}</span>` : `<span style="color:#4ade80;font-weight:900">Free</span>`;
+                toolTip.innerHTML = `
+                    <div style="font-weight:900;font-size:14px;margin-bottom:4px">${meta.name}</div>
+                    <div style="margin-bottom:6px">${costStr}</div>
+                    ${config.stars ? `<div style="margin-bottom:6px">${starsHtml(config.stars)}</div>` : ''}
+                    <div style="color:#cbd5e1;font-size:11px;line-height:1.4">${config.tip || ''}</div>
+                `;
+                toolTip.style.display = 'block';
+                positionTooltip(e);
+            });
+            btn.addEventListener('mousemove', positionTooltip);
+            btn.addEventListener('mouseleave', () => { toolTip.style.display = 'none'; });
+        });
+        function positionTooltip(e) {
+            const pad = 12;
+            let x = e.clientX + pad, y = e.clientY - toolTip.offsetHeight - pad;
+            if (x + toolTip.offsetWidth > window.innerWidth) x = e.clientX - toolTip.offsetWidth - pad;
+            if (y < 0) y = e.clientY + pad;
+            toolTip.style.left = x + 'px';
+            toolTip.style.top = y + 'px';
+        }
+
+        // ─── Dropper Hover Panel ───────────────────────────────────────────────────
+        const dropperPanel = document.getElementById('dropper-panel');
+        let hoveredDropperKey = null;
+        let mouseOnDropperPanel = false;
+        let dropperHideTimer = null;
+
+        function showDropperPanel(gx, gy, key) {
+            clearTimeout(dropperHideTimer);
+            const tile = grid[key];
+            if (!tile) return;
+            const dropper = droppers.find(d => d.x === gx && d.y === gy);
+            const cfg = dropper ? dropper.config : TOOL_CONFIG[tile.type];
+            const meta = TOOL_META[tile.type];
+            const upgCost = Math.floor(cfg.yield * 50 * globalMultiplier);
+            dropperPanel.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <div style="font-weight:900;font-size:14px;color:#fbbf24">${meta?.name || tile.type}</div>
+                    <button id="dropper-close-btn" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:14px;font-weight:900;width:24px;height:24px;border-radius:50%;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:10px">
+                    <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase">Drop Speed</div>
+                    <div style="color:#fff;font-weight:900">${(cfg.interval/1000).toFixed(1)}s</div>
+                    <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase">Base Value</div>
+                    <div style="color:#4ade80;font-weight:900">$${cfg.yield}</div>
+                    <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase">With Multiplier</div>
+                    <div style="color:#fbbf24;font-weight:900">${formatNumber(cfg.yield * globalMultiplier)}</div>
+                    <div style="color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase">Golden Chance</div>
+                    <div style="color:#f59e0b;font-weight:900">2%</div>
+                </div>
+                <button id="dropper-upgrade-btn" style="width:100%;padding:8px;background:#fbbf24;color:#000;border:none;border-radius:10px;font-weight:900;font-size:11px;cursor:pointer;text-transform:uppercase">
+                    ⬆ Upgrade Value (${formatNumber(upgCost)})
+                </button>
+            `;
+            // Position panel
+            const screenX = gx * TILE_SIZE - camX + TILE_SIZE;
+            const screenY = gy * TILE_SIZE - camY;
+            let px = screenX + 8, py = screenY;
+            if (px + 230 > window.innerWidth) px = (gx * TILE_SIZE - camX) - 238;
+            if (py + 200 > window.innerHeight) py = window.innerHeight - 205;
+            if (py < 0) py = 4;
+            dropperPanel.style.left = px + 'px';
+            dropperPanel.style.top = py + 'px';
+            dropperPanel.style.display = 'block';
+
+            document.getElementById('dropper-close-btn').onclick = () => hideDropperPanel(true);
+            document.getElementById('dropper-upgrade-btn').onclick = () => {
+                if (balance >= upgCost && dropper) {
+                    balance -= upgCost;
+                    dropper.config = Object.assign({}, dropper.config, { yield: Math.floor(dropper.config.yield * 1.5) });
+                    notify(`Dropper upgraded! New value: $${dropper.config.yield}`);
+                    hoveredDropperKey = null;
+                    hideDropperPanel(true);
+                    updateUI(); saveGame();
+                    playSound(1000, 'sine', 0.15);
+                } else {
+                    notify('Not enough balance!');
+                }
+            };
+        }
+
+        function hideDropperPanel(immediate = false) {
+            clearTimeout(dropperHideTimer);
+            if (immediate) {
+                dropperPanel.style.display = 'none';
+                hoveredDropperKey = null;
+                mouseOnDropperPanel = false;
+            } else {
+                dropperHideTimer = setTimeout(() => {
+                    if (!mouseOnDropperPanel) {
+                        dropperPanel.style.display = 'none';
+                        hoveredDropperKey = null;
+                    }
+                }, 120); // 120ms grace period to move mouse onto panel
+            }
+        }
+
+        dropperPanel.addEventListener('mouseenter', () => {
+            mouseOnDropperPanel = true;
+            clearTimeout(dropperHideTimer);
+        });
+        dropperPanel.addEventListener('mouseleave', () => {
+            mouseOnDropperPanel = false;
+            hideDropperPanel();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (mouseOnDropperPanel) return;
+            const gx = Math.floor((e.clientX + camX) / TILE_SIZE);
+            const gy = Math.floor((e.clientY + camY) / TILE_SIZE);
+            const key = `${gx},${gy}`;
+            const tile = grid[key];
+            if (tile && tile.type.includes('dropper')) {
+                clearTimeout(dropperHideTimer);
+                if (hoveredDropperKey !== key) {
+                    hoveredDropperKey = key;
+                    showDropperPanel(gx, gy, key);
+                }
+            } else {
+                if (hoveredDropperKey) hideDropperPanel();
+            }
+        });
+        canvas.addEventListener('mouseleave', () => {
+            if (!mouseOnDropperPanel) hideDropperPanel();
+        });
+
+        window.onload = () => {
+            resize();
+            loadGame();
+            window.addEventListener('resize', resize);
+
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            window.addEventListener('contextmenu', e => e.preventDefault());
+
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) isMouseDown = true;
+                if (e.button === 2) isRightMouseDown = true;
+                if (isMouseDown && buildModeOn) handleAction(e.clientX, e.clientY);
+            });
+            window.addEventListener('mouseup', () => { isMouseDown = false; isRightMouseDown = false; });
+            canvas.addEventListener('mousemove', (e) => {
+                hasMouse = true;
+                mouseX = e.clientX; mouseY = e.clientY;
+                // Pan: right-click always pans; left-click pans when build mode OFF
+                if (isRightMouseDown || (isMouseDown && !buildModeOn)) {
+                    camX -= (e.clientX - lastMouseX); camY -= (e.clientY - lastMouseY);
+                }
+                if (isMouseDown && buildModeOn && selectedTool !== 'edit') handleAction(e.clientX, e.clientY);
+                lastMouseX = e.clientX; lastMouseY = e.clientY;
+            });
+            // Build Mode: true = touch builds, false = touch pans camera
+            let buildModeOn = true;
+            const buildModeBtn = document.getElementById('btn-build-mode');
+            const buildModeIcon = document.getElementById('build-mode-icon');
+            const buildModeLabel = document.getElementById('build-mode-label');
+            function setBuildMode(on) {
+                buildModeOn = on;
+                buildModeIcon.textContent = on ? '🔨' : '🎥';
+                buildModeLabel.textContent = on ? 'Build ON' : 'Pan Mode';
+                buildModeBtn.classList.toggle('active', on);
+                canvas.classList.toggle('pan-mode', !on);
+            }
+            buildModeBtn.addEventListener('click', () => setBuildMode(!buildModeOn));
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 1) return; // let pinch-zoom pass
+                const t = e.touches[0];
+                mouseX = t.clientX; mouseY = t.clientY;
+                lastMouseX = t.clientX; lastMouseY = t.clientY;
+                isMouseDown = true;
+                if (buildModeOn) {
+                    // Also check for dropper tap
+                    const gx = Math.floor((t.clientX + camX) / TILE_SIZE);
+                    const gy = Math.floor((t.clientY + camY) / TILE_SIZE);
+                    const key = `${gx},${gy}`;
+                    const tile = grid[key];
+                    if (tile && tile.type.includes('dropper')) {
+                        showDropperPanel(gx, gy, key);
+                    } else {
+                        hideDropperPanel(true);
+                        handleAction(t.clientX, t.clientY);
+                    }
+                }
+            }, { passive: true });
+            canvas.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) return;
+                const t = e.touches[0];
+                if (buildModeOn) {
+                    if (selectedTool !== 'edit') handleAction(t.clientX, t.clientY);
+                } else {
+                    camX -= (t.clientX - lastMouseX);
+                    camY -= (t.clientY - lastMouseY);
+                }
+                lastMouseX = t.clientX; lastMouseY = t.clientY;
+            }, { passive: true });
+            canvas.addEventListener('touchend', () => { isMouseDown = false; });
+
+            function sellSelected() {
+                if (selectedTool === 'edit' && selectedObjectKey) {
+                    const [gx, gy] = selectedObjectKey.split(',').map(Number);
+                    const tile = grid[selectedObjectKey];
+                    const refund = Math.floor((TOOL_CONFIG[tile?.type]?.cost || 0) * 0.5);
+                    const idx = droppers.findIndex(d => d.x === gx && d.y === gy);
+                    if (idx !== -1) droppers.splice(idx, 1);
+                    delete grid[selectedObjectKey];
+                    selectedObjectKey = null;
+                    if (refund > 0) {
+                        balance += refund;
+                        notify(`Sold for ${formatNumber(refund)} 💰`);
+                        updateUI();
+                    }
+                    playSound(200, 'square', 0.1);
+                } else if (selectedTool === 'edit') {
+                    notify('Tap a tile first to select it, then sell!');
+                }
+            }
+
+            document.getElementById('btn-sell').addEventListener('click', sellSelected);
+
+            window.addEventListener('keydown', e => {
+                const key = e.key.toLowerCase();
+                if (key === 'e') rotateTool(1);
+                if (key === 'q') rotateTool(-1);
+                if (key === 'backspace' || key === 'delete') sellSelected();
+            });
+
+            document.getElementById('manual-clicker').onclick = () => {
+                balance += clickPower;
+                totalClicks++;
+                checkAchievements();
+                playSound(800, 'sine', 0.05, 0.01);
+                updateUI();
+            };
+            document.getElementById('export-save').onclick = () => exportSave();
+            document.getElementById('import-file').onchange = (e) => {
+                importSave(e.target.files[0]);
+                e.target.value = ''; // Reset so same file can be re-imported
+            };
+            document.getElementById('delete-save').onclick = () => {
+                if (confirm('⚠️ Are you sure? This will DELETE your save and reset everything!')) {
+                    SafeStorage.removeItem(SAVE_KEY);
+                    balance = 150; researchLevel = 0; globalMultiplier = 1.0;
+                    clickPower = 1.0; speedMultiplier = 1.0; totalItemsSold = 0; peakMPS = 0;
+                    grid = {}; items = []; droppers = [];
+                    UPGRADES.forEach(u => ownedUpgrades[u.id] = 0);
+                    CONSTRUCTIONS.forEach(c => ownedConstructions[c.id] = false);
+                    updateLockedTools();
+                    updateUI();
+                    notify('Save deleted. Fresh start! 🌱');
+                }
+            };
+            document.getElementById('open-upgrades').onclick = () => {
+                renderUpgradeList();
+                document.getElementById('upgrade-modal').classList.remove('hidden');
+            };
+            document.getElementById('close-upgrades').onclick = () => document.getElementById('upgrade-modal').classList.add('hidden');
+            document.getElementById('tab-upgrades').onclick = () => switchTab('upgrades');
+            document.getElementById('tab-construction').onclick = () => switchTab('construction');
+            document.getElementById('tab-achievements').onclick = () => switchTab('achievements');
+
+            document.getElementById('research-btn').onclick = () => {
+                if (balance < RESEARCH_COST) return;
+                researchLevel++;
+                totalRebirths++;
+                balance = 150;
+                grid = {}; items = []; droppers = [];
+                globalMultiplier = 1.0;
+                clickPower = 1.0;
+                speedMultiplier = 1.0;
+                UPGRADES.forEach(u => ownedUpgrades[u.id] = 0);
+                ownedConstructions = {};
+                CONSTRUCTIONS.forEach(c => ownedConstructions[c.id] = false);
+                updateLockedTools();
+                updateUI();
+                playSound(1500, 'sine', 0.5);
+                notify('Factory Leveled Up! Rank ' + researchLevel);
+                saveGame();
+            };
+            document.getElementById('sound-toggle').onclick = () => {
+                soundEnabled = !soundEnabled;
+                document.getElementById('sound-icon').innerText = soundEnabled ? '🔊' : '🔇';
+                const music = document.getElementById('bg-music');
+                if (soundEnabled) { music.volume = 0.5; music.play().catch(()=>{}); }
+                else { music.pause(); }
+            };
+
+            // Autoplay music on first user interaction
+            const bgMusic = document.getElementById('bg-music');
+            bgMusic.volume = 0.5;
+            const startMusic = () => { bgMusic.play().catch(()=>{}); document.removeEventListener('click', startMusic); document.removeEventListener('keydown', startMusic); };
+            document.addEventListener('click', startMusic);
+            document.addEventListener('keydown', startMusic);
+
+            const toolMenu = document.getElementById('tool-menu');
+
+            // Toolbar touch drag-to-scroll
+            let toolTouchStartX = 0, toolTouchScrollLeft = 0;
+            toolMenu.addEventListener('touchstart', (e) => {
+                toolTouchStartX = e.touches[0].pageX;
+                toolTouchScrollLeft = toolMenu.scrollLeft;
+            }, { passive: true });
+            toolMenu.addEventListener('touchmove', (e) => {
+                const dx = toolTouchStartX - e.touches[0].pageX;
+                toolMenu.scrollLeft = toolTouchScrollLeft + dx;
+            }, { passive: true });
+
+            // Toolbar mouse drag-to-scroll
+            let toolDragging = false, toolStartX = 0, toolScrollLeft = 0;
+            toolMenu.addEventListener('mousedown', (e) => {
+                // Only drag-scroll if not clicking a button
+                if (e.target.closest('.tool-btn')) return;
+                toolDragging = true;
+                toolStartX = e.pageX - toolMenu.offsetLeft;
+                toolScrollLeft = toolMenu.scrollLeft;
+                toolMenu.style.cursor = 'grabbing';
+            });
+            window.addEventListener('mouseup', () => { toolDragging = false; toolMenu.style.cursor = 'default'; });
+            toolMenu.addEventListener('mousemove', (e) => {
+                if (!toolDragging) return;
+                e.preventDefault();
+                const x = e.pageX - toolMenu.offsetLeft;
+                toolMenu.scrollLeft = toolScrollLeft - (x - toolStartX);
+            });
+            // Scroll with mouse wheel horizontally on toolbar
+            toolMenu.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                toolMenu.scrollLeft += e.deltaY * 0.8;
+            }, { passive: false });
+
+            document.getElementById('btn-rot-ccw').addEventListener('click', () => rotateTool(-1));
+            document.getElementById('btn-rot-cw').addEventListener('click', () => rotateTool(1));
+
+            const allTools = ['conveyor', 'fastConveyor', 'turboConveyor', 'dropper', 'megaDropper', 'goldenDropper', 'refinery', 'smelter', 'presser', 'juicer', 'wall', 'collector', 'upgradeStation', 'tree', 'flower', 'pond', 'sign', 'lamp', 'bench', 'edit'];
+            allTools.forEach(tool => {
+                const el = document.getElementById('btn-' + tool);
+                if (el) el.onclick = () => setTool(tool);
+            });
+
+            updateLockedTools();
+
+            // Main game interval
+            setInterval(() => {
+                const now = Date.now();
+
+                // Vault interest: 5%/min = 0.05/60000ms. Ticks every 30ms.
+                if (ownedConstructions['c_vault']) {
+                    balance += balance * (0.05 / 60000) * 30;
+                }
+                // Windmill: $50/sec = $1.5 per 30ms tick
+                if (ownedConstructions['c_windmill']) {
+                    balance += 1.5 * globalMultiplier;
+                }
+                // Solar Farm: $500/sec = $15 per 30ms tick
+                if (ownedConstructions['c_solarFarm']) {
+                    balance += 15 * globalMultiplier;
+                }
+
+                droppers.forEach(d => {
+                    if (items.length >= 150) return; // Fruit cap to prevent lag
+                    if (now - d.lastSpawn > d.config.interval) {
+                        const alreadyOccupied = items.some(it => Math.abs(it.x - d.x) < 0.4 && Math.abs(it.y - d.y) < 0.4);
+                        if (!alreadyOccupied) {
+                            const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+                            const isGolden = Math.random() < 0.02;
+                            items.push({ x: d.x, y: d.y, yield: d.config.yield * globalMultiplier, emoji: isGolden ? '⭐' : type.emoji, color: isGolden ? '#fbbf24' : type.color, scale: isGolden ? 1.3 : 1.0, speedMod: 1.0, processedBy: new Set(), isGolden });
+                            d.lastSpawn = now;
+                        }
+                    }
+                });
+
+                mpsBuffer = mpsBuffer.filter(b => now - b.time < 5000);
+                currentMPS = mpsBuffer.reduce((a, b) => a + b.val, 0) / 5;
+                if (currentMPS > peakMPS) peakMPS = currentMPS;
+
+                for (let i = items.length - 1; i >= 0; i--) {
+                    const item = items[i];
+                    const gx = Math.round(item.x), gy = Math.round(item.y);
+                    const tile = grid[`${gx},${gy}`];
+                    if (tile) {
+                        const s = (TOOL_CONFIG[tile.type]?.speed || 0.08) * speedMultiplier * item.speedMod;
+                        if (tile.rot === 0 || tile.rot === 2) item.x = item.x * 0.9 + gx * 0.1;
+                        else item.y = item.y * 0.9 + gy * 0.1;
+                        if (tile.rot === 0) item.y -= s;
+                        else if (tile.rot === 1) item.x += s;
+                        else if (tile.rot === 2) item.y += s;
+                        else item.x -= s;
+
+                        const key = `${gx},${gy}`;
+                        if (tile.type === 'refinery' && !item.processedBy.has('refinery')) {
+                            item.yield *= 2; item.processedBy.add('refinery');
+                            playSound(900, 'sine', 0.1, 0.02);
+                        } else if (tile.type === 'smelter' && !item.processedBy.has('smelter')) {
+                            item.yield *= 0.75; item.scale *= 0.7; item.speedMod *= 2.0;
+                            item.processedBy.add('smelter');
+                            playSound(400, 'triangle', 0.1, 0.02);
+                        } else if (tile.type === 'presser' && !item.processedBy.has('presser')) {
+                            item.yield *= 3; item.scale *= 1.2; item.speedMod *= 0.8;
+                            item.processedBy.add('presser');
+                            playSound(700, 'square', 0.1, 0.02);
+                        } else if (tile.type === 'juicer' && !item.processedBy.has('juicer')) {
+                            item.yield *= 5; item.scale *= 0.8; item.speedMod *= 1.5;
+                            item.processedBy.add('juicer');
+                            playSound(1100, 'sine', 0.12, 0.03);
+                        } else if (tile.type === 'upgradeStation' && !item.processedBy.has('upgradeStation')) {
+                            item.yield *= 1.5; item.processedBy.add('upgradeStation');
+                            playSound(600, 'sine', 0.08, 0.02);
+                        } else if (tile.type === 'collector') {
+                            // Golden fruit: 2% chance any fruit is worth 10x
+                            const isGolden = item.isGolden;
+                            const earned = item.yield * (isGolden ? 10 : 1);
+                            balance += earned;
+                            totalEarned += earned;
+                            totalItemsSold++;
+                            if (isGolden) goldenFruitsCaught++;
+                            mpsBuffer.push({ val: earned, time: now });
+                            createParticles(item.x, item.y, isGolden ? '#fbbf24' : item.color, isGolden ? 20 : 8);
+                            playSound(isGolden ? 1600 : 600 + Math.min(400, item.yield), 'sine', isGolden ? 0.3 : 0.1, isGolden ? 0.15 : 0.03);
+                            if (isGolden) notify('⭐ Golden Fruit! 10x value!');
+                            items.splice(i, 1);
+                            checkAchievements();
+                            updateUI();
+                        }
+                    } else {
+                        items.splice(i, 1);
+                    }
+                }
+            }, 30);
+
+            // Auto-save every 60s
+            setInterval(() => saveGame(), 60000);
+
+            // Poll passive achievements every 5s (night_owl, sandbox, speed_demon, etc.)
+            setInterval(() => checkAchievements(), 5000);
+
+            draw();
+            setTool('conveyor');
+        };
+    </script>
+</body>
+</html>
