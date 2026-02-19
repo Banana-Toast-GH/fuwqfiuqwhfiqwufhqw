@@ -825,20 +825,40 @@
             const saveData = {
                 balance, researchLevel, globalMultiplier, clickPower,
                 speedMultiplier, totalItemsSold, peakMPS,
+                totalEarned, totalRebirths, goldenFruitsCaught,
+                totalClicks, nightsWitnessed, unlockedAchievements,
                 ownedUpgrades, ownedConstructions, soundEnabled,
                 gridSerialized: JSON.stringify(grid),
                 lastSaved: Date.now(),
                 exportVersion: 'NatureFactory_v6'
             };
             const json = JSON.stringify(saveData, null, 2);
-            const blob = new Blob([json], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            const date = new Date().toISOString().slice(0,10);
-            a.href = url;
-            a.download = `nature-factory-${date}.fruit`;
-            a.click();
-            URL.revokeObjectURL(url);
+
+            // Try native download first
+            try {
+                const blob = new Blob([json], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const date = new Date().toISOString().slice(0,10);
+                a.href = url;
+                a.download = `nature-factory-${date}.fruit`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+            } catch(e) {}
+
+            // Also show a copy-paste fallback modal (helpful on Android where downloads are blocked)
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px';
+            overlay.innerHTML = `
+                <div style="color:#fbbf24;font-weight:900;font-size:16px">📤 Export Save</div>
+                <div style="color:#94a3b8;font-size:11px;text-align:center">Download should start automatically.<br>On Android, long-press the text below and <b style="color:white">Select All → Copy</b> to save manually.</div>
+                <textarea readonly style="width:100%;max-width:480px;height:180px;background:#0f172a;color:#4ade80;border:2px solid #fbbf24;border-radius:12px;padding:10px;font-size:10px;font-family:monospace;resize:none">${json}</textarea>
+                <button style="background:#fbbf24;color:#000;font-weight:900;padding:10px 28px;border:none;border-radius:12px;font-size:14px;cursor:pointer" onclick="this.closest('div').remove()">Close ✕</button>
+            `;
+            document.body.appendChild(overlay);
+
             notify('Save exported! 📤');
             playSound(900, 'sine', 0.15);
         }
