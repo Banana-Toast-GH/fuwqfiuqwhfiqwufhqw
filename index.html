@@ -102,6 +102,37 @@
 
         .tab-btn { transition: all 0.2s; }
         .tab-btn.active { background: #7c3aed; color: white; }
+
+        /* ── Mobile scaling ───────────────────────────────────────── */
+        @media (max-width: 480px) {
+            #ui-layer { padding: 8px !important; }
+
+            /* Balance card */
+            #balance-display { font-size: 1.5rem !important; }
+
+            /* Top-right: hide text labels on save buttons, shrink research bar */
+            #research-progress-container { width: 90px !important; padding: 4px 6px !important; }
+            .save-btn-text { display: none !important; }
+            #export-save, #import-label, #delete-save, #sound-toggle { padding: 6px 8px !important; }
+            #export-save span:first-child, #import-label span:first-child,
+            #delete-save span:first-child { font-size: 1rem !important; }
+
+            /* Category tabs — tighter */
+            .cat-btn { padding: 3px 7px !important; font-size: 8px !important; }
+
+            /* Toolbar — smaller tiles */
+            #tool-menu { padding: 5px 8px !important; gap: 5px !important;
+                         border-width: 2px !important; border-radius: 1.2rem !important; }
+            .tool-btn { min-width: 50px !important; padding: 4px 3px !important; }
+            .tool-btn span:first-child { font-size: 1rem !important; }
+            .tool-btn span:last-child  { font-size: 7px !important; }
+
+            /* Harvest & Upgrades buttons */
+            #manual-clicker, #open-upgrades { padding: 6px 8px !important; }
+
+            /* Rotation widget */
+            #rot-icon { font-size: 1rem !important; }
+        }
     </style>
 </head>
 <body>
@@ -120,36 +151,36 @@
     <div id="tool-tooltip"></div>
     <div id="dropper-panel"></div>
 
-    <div id="ui-layer" class="p-6 flex flex-col justify-between">
+    <div id="ui-layer" class="p-3 sm:p-6 flex flex-col justify-between">
         <div class="flex justify-between items-start">
-            <div class="flex flex-col gap-3">
-                <div class="bg-white/90 backdrop-blur-md p-4 rounded-3xl border-4 border-green-800 interactable shadow-2xl min-w-[200px]">
-                    <p class="text-green-800 text-xs uppercase tracking-tighter font-black">Bank Balance</p>
-                    <h1 id="balance-display" class="text-4xl font-black text-green-600">$150</h1>
+            <div class="flex flex-col gap-2">
+                <div class="bg-white/90 backdrop-blur-md p-2 sm:p-4 rounded-3xl border-2 sm:border-4 border-green-800 interactable shadow-2xl min-w-[140px] sm:min-w-[200px]">
+                    <p class="text-green-800 text-[9px] sm:text-xs uppercase tracking-tighter font-black">Bank Balance</p>
+                    <h1 id="balance-display" class="text-2xl sm:text-4xl font-black text-green-600">$150</h1>
                     <div class="flex justify-between mt-1 border-t border-green-200 pt-1">
                         <p id="mps-display" class="text-[10px] font-bold text-orange-600">MPS: $0.00</p>
                         <p id="multiplier-text" class="text-[10px] font-bold text-blue-600">Multi: 1.0x</p>
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button id="manual-clicker" class="bg-orange-500 hover:bg-orange-400 text-white p-3 rounded-2xl border-b-4 border-orange-700 interactable shadow-lg transition-all active:border-b-0 active:translate-y-1 flex items-center gap-2 group">
-                        <span class="text-xl group-hover:rotate-12 transition-transform">⛏️</span>
+                    <button id="manual-clicker" class="bg-orange-500 hover:bg-orange-400 text-white p-2 sm:p-3 rounded-2xl border-b-4 border-orange-700 interactable shadow-lg transition-all active:border-b-0 active:translate-y-1 flex items-center gap-1 sm:gap-2 group">
+                        <span class="text-base sm:text-xl group-hover:rotate-12 transition-transform">⛏️</span>
                         <div class="text-left">
-                            <p class="text-[10px] font-bold uppercase leading-none">Harvest</p>
-                            <p id="click-value-text" class="text-xs font-black">+$1.00</p>
+                            <p class="text-[9px] sm:text-[10px] font-bold uppercase leading-none">Harvest</p>
+                            <p id="click-value-text" class="text-[10px] sm:text-xs font-black">+$1.00</p>
                         </div>
                     </button>
-                    <button id="open-upgrades" class="bg-purple-600 hover:bg-purple-500 text-white p-3 rounded-2xl border-b-4 border-purple-800 interactable shadow-lg transition-all flex items-center gap-2">
-                        <span class="text-xl">✨</span>
-                        <span class="text-xs font-black uppercase">Upgrades</span>
+                    <button id="open-upgrades" class="bg-purple-600 hover:bg-purple-500 text-white p-2 sm:p-3 rounded-2xl border-b-4 border-purple-800 interactable shadow-lg transition-all flex items-center gap-1 sm:gap-2">
+                        <span class="text-base sm:text-xl">✨</span>
+                        <span class="text-[10px] sm:text-xs font-black uppercase">Upgrades</span>
                     </button>
                 </div>
             </div>
             
-            <div class="flex flex-col gap-2 items-end">
-                <div class="bg-white/90 backdrop-blur-md p-3 rounded-2xl border-2 border-green-800 text-right interactable shadow-xl">
-                    <p class="text-green-900 text-sm font-bold">Nature Factory v6.0</p>
-                    <p id="save-status" class="text-blue-600 text-[9px] font-bold uppercase tracking-widest">Ready</p>
+            <div class="flex flex-col gap-1 sm:gap-2 items-end">
+                <div class="bg-white/90 backdrop-blur-md p-2 sm:p-3 rounded-2xl border-2 border-green-800 text-right interactable shadow-xl">
+                    <p class="text-green-900 text-[10px] sm:text-sm font-bold">Nature Factory v6.0</p>
+                    <p id="save-status" class="text-blue-600 text-[8px] sm:text-[9px] font-bold uppercase tracking-widest">Ready</p>
                 </div>
                 <div class="flex gap-2 items-center flex-wrap justify-end max-w-[calc(100vw-220px)]">
                     <div id="research-progress-container" class="bg-white/80 backdrop-blur-md p-2 rounded-2xl border-2 border-blue-900 w-48 interactable shadow-lg flex flex-col gap-1">
@@ -163,16 +194,16 @@
                     </div>
                     <button id="export-save" class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl border-b-4 border-blue-800 interactable shadow-lg transition-all flex items-center gap-2" title="Download save file">
                         <span class="text-xl">📤</span>
-                        <span class="text-xs font-black uppercase">Export</span>
+                        <span class="save-btn-text text-xs font-black uppercase">Export</span>
                     </button>
                     <label id="import-label" class="bg-green-600 hover:bg-green-500 text-white p-3 rounded-2xl border-b-4 border-green-800 interactable shadow-lg transition-all flex items-center gap-2 cursor-pointer" title="Load a save file">
                         <span class="text-xl">📥</span>
-                        <span class="text-xs font-black uppercase">Import</span>
+                        <span class="save-btn-text text-xs font-black uppercase">Import</span>
                         <input id="import-file" type="file" accept=".fruit,.save,.json" class="hidden" />
                     </label>
                     <button id="delete-save" class="bg-red-600 hover:bg-red-500 text-white p-3 rounded-2xl border-b-4 border-red-800 interactable shadow-lg transition-all flex items-center gap-2" title="Delete Save & Reset">
                         <span class="text-xl">🗑️</span>
-                        <span class="text-xs font-black uppercase">Reset</span>
+                        <span class="save-btn-text text-xs font-black uppercase">Reset</span>
                     </button>
                     <button id="research-btn" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-105 text-white p-3 rounded-2xl border-b-4 border-blue-900 interactable shadow-xl transition-all flex items-center gap-2">
                         <span class="text-xl">🔬</span>
@@ -188,7 +219,7 @@
             </div>
         </div>
 
-        <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col items-center gap-1 sm:gap-2">
             <!-- Category Filter Tabs -->
             <div class="flex gap-2 interactable flex-wrap justify-center">
                 <button data-cat="conveyors" class="cat-btn active px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 shadow-lg transition-all" style="background:#64748b;border-color:#475569;color:white;">🛤️ Conveyors</button>
@@ -199,68 +230,68 @@
             </div>
 
             <!-- Tool Bar -->
-            <div id="tool-menu" class="bg-white/90 backdrop-blur-xl p-3 rounded-[2.5rem] border-4 border-green-900 flex gap-3 interactable shadow-2xl overflow-x-auto" style="max-width: calc(100vw - 48px); scrollbar-width: thin; border-color: #14532d;">
+            <div id="tool-menu" class="bg-white/90 backdrop-blur-xl p-2 sm:p-3 rounded-[1.5rem] sm:rounded-[2.5rem] border-2 sm:border-4 border-green-900 flex gap-2 sm:gap-3 interactable shadow-2xl overflow-x-auto" style="max-width: calc(100vw - 24px); scrollbar-width: thin; border-color: #14532d;">
 
                 <!-- CONVEYORS -->
-                <button id="btn-conveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
-                    <span class="text-xl">🛤️</span>
+                <button id="btn-conveyor" data-cat="conveyors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
+                    <span class="text-base sm:text-xl">🛤️</span>
                     <span class="text-[9px] uppercase font-black mt-1">Belt $5</span>
                 </button>
-                <button id="btn-fastConveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
-                    <span class="text-xl">⚡</span>
+                <button id="btn-fastConveyor" data-cat="conveyors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
+                    <span class="text-base sm:text-xl">⚡</span>
                     <span class="text-[9px] uppercase font-black mt-1">Fast $20</span>
                 </button>
-                <button id="btn-turboConveyor" data-cat="conveyors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
-                    <span class="text-xl">🚀</span>
+                <button id="btn-turboConveyor" data-cat="conveyors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
+                    <span class="text-base sm:text-xl">🚀</span>
                     <span class="text-[9px] uppercase font-black mt-1">Turbo $80</span>
                 </button>
 
                 <!-- DROPPERS -->
-                <button id="btn-dropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-dropper" data-cat="droppers" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🌱</span>
                     <span class="text-[9px] uppercase font-black mt-1">Basic $25</span>
                 </button>
-                <button id="btn-megaDropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-megaDropper" data-cat="droppers" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🌳</span>
                     <span class="text-[9px] uppercase font-black mt-1">Mega $150</span>
                 </button>
-                <button id="btn-goldenDropper" data-cat="droppers" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-goldenDropper" data-cat="droppers" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">⭐</span>
                     <span class="text-[9px] uppercase font-black mt-1">Gold $500</span>
                 </button>
 
                 <!-- COMPRESSORS -->
-                <button id="btn-refinery" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-refinery" data-cat="compressors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">💎</span>
                     <span class="text-[9px] uppercase font-black mt-1">Refine $75</span>
                 </button>
-                <button id="btn-smelter" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-smelter" data-cat="compressors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🔥</span>
                     <span class="text-[9px] uppercase font-black mt-1">Smelt $75</span>
                 </button>
-                <button id="btn-presser" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-presser" data-cat="compressors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">⚙️</span>
                     <span class="text-[9px] uppercase font-black mt-1">Press $200</span>
                 </button>
-                <button id="btn-juicer" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-juicer" data-cat="compressors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🧪</span>
                     <span class="text-[9px] uppercase font-black mt-1">Juice $350</span>
                 </button>
-                <button id="btn-upgradeStation" data-cat="compressors" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-upgradeStation" data-cat="compressors" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🏗️</span>
                     <span class="text-[9px] uppercase font-black mt-1">Boost $400</span>
                 </button>
 
                 <!-- MISC -->
-                <button id="btn-wall" data-cat="misc" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-wall" data-cat="misc" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🧱</span>
                     <span class="text-[9px] uppercase font-black mt-1">Wall $10</span>
                 </button>
-                <button id="btn-collector" data-cat="misc" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-collector" data-cat="misc" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🧺</span>
                     <span class="text-[9px] uppercase font-black mt-1">Bin $0</span>
                 </button>
-                <button id="btn-edit" data-cat="always" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-edit" data-cat="always" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🖱️</span>
                     <span class="text-[9px] uppercase font-black mt-1">Edit</span>
                 </button>
@@ -270,27 +301,27 @@
                 </button>
 
                 <!-- DECORATIONS -->
-                <button id="btn-tree"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-tree"   data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🌲</span>
                     <span class="text-[9px] uppercase font-black mt-1">Tree $5</span>
                 </button>
-                <button id="btn-flower" data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-flower" data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🌸</span>
                     <span class="text-[9px] uppercase font-black mt-1">Flower $3</span>
                 </button>
-                <button id="btn-pond"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-pond"   data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">💧</span>
                     <span class="text-[9px] uppercase font-black mt-1">Pond $15</span>
                 </button>
-                <button id="btn-sign"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-sign"   data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🪧</span>
                     <span class="text-[9px] uppercase font-black mt-1">Sign $8</span>
                 </button>
-                <button id="btn-lamp"   data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-lamp"   data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🪔</span>
                     <span class="text-[9px] uppercase font-black mt-1">Lamp $12</span>
                 </button>
-                <button id="btn-bench"  data-cat="decorations" class="tool-btn p-2 rounded-2xl text-white flex flex-col items-center min-w-[70px]">
+                <button id="btn-bench"  data-cat="decorations" class="tool-btn p-1.5 sm:p-2 rounded-xl sm:rounded-2xl text-white flex flex-col items-center min-w-[52px] sm:min-w-[70px]">
                     <span class="text-xl">🪑</span>
                     <span class="text-[9px] uppercase font-black mt-1">Bench $10</span>
                 </button>
